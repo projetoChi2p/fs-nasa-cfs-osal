@@ -73,8 +73,7 @@ void UT_os_init_file_misc(void);
 int32 UT_os_setup_fs()
 {
     int32 res;
-
-    res = OS_mkfs(g_fsAddrPtr, g_devName, "RAM3", OSAL_SIZE_C(512), OSAL_BLOCKCOUNT_C(64));
+    res = OS_mkfs(g_fsAddrPtr, g_devName, "RAM3", OSAL_SIZE_C(512), OSAL_BLOCKCOUNT_C(128));
     if (res != OS_SUCCESS)
     {
         UtPrintf("OS_mkfs() returns %d\n", (int)res);

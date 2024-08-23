@@ -30,6 +30,7 @@
 #include "utlist.h"
 #include <stdlib.h>
 #include <string.h>
+#include <os-shared-globaldefs.h>
 
 /*
  * Function Definitions

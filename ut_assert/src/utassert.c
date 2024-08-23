@@ -33,6 +33,7 @@
 #include "utassert.h"
 #include "uttools.h"
 #include "utbsp.h"
+#include <os-shared-globaldefs.h>
 
 /*
  * Local Data

@@ -27,6 +27,8 @@
  */
 
 #include "utglobal.h"
+#include <os-shared-globaldefs.h>
+
 
 /*
  * Global state instance
@@ -164,6 +166,7 @@ void UtTest_Run(void)
             UtAssert_SetContext(UTASSERT_CASETYPE_TSF);
             if (UtTestDataBaseEntry->Setup)
             {
+                // TODO: bug here
                 UtTestDataBaseEntry->Setup();
             }
             UtAssert_SetContext(UTASSERT_CASETYPE_FAILURE);
@@ -191,9 +194,12 @@ void UtTest_Run(void)
 
 void UtTest_EarlyInit(void)
 {
+    // CFE_ES_SysLogWrite_Unsync("%s: %p %d [%d]\n", __func__, &UtAssert_Global, sizeof(UtAssert_Global), __LINE__);
     /*
      * Reset the test global variables, just in case.
      */
     memset(&UtAssert_Global, 0, sizeof(UtAssert_Global));
+    // CFE_ES_SysLogWrite_Unsync("%s: [%d]\n", __func__, __LINE__);
     UtAssert_Global.DataBasePtr = UtList_Create(UTASSERT_GROUP_MAX);
+    // CFE_ES_SysLogWrite_Unsync("%s: [%d]\n", __func__, __LINE__);
 }

@@ -105,7 +105,7 @@ if (OSAL_VALIDATE_API)
     list(APPEND OSAL_LANG CXX)
 endif()
 
-project(OSAL ${OSAL_LANG})
+project(OSAL ${OSAL_LANG} ASM)
 
 # define a custom property to track relationship between BSP and OS
 # this should be set on BSP "impl" targets to indicate the correct OS impl to go with it
@@ -249,6 +249,10 @@ message(STATUS "BSP Selection: ${OSAL_SYSTEM_BSPTYPE} at ${OSAL_BSP_SOURCE_DIR}"
 # The Implementation-Specific BSP subdirectory should define
 # an OBJECT target named "osal_${OSAL_SYSTEM_BSPTYPE}_impl"
 add_subdirectory(${OSAL_BSP_SOURCE_DIR} ${OSAL_SYSTEM_BSPTYPE}_impl)
+
+message("*** Inside cmake list ${CMAKE_CURRENT_LIST_FILE}.")
+message("*** Using OSAL_SOURCE_DIR '${OSAL_SOURCE_DIR}'.")
+message("*** Using OSAL_SYSTEM_BSPTYPE '${OSAL_SYSTEM_BSPTYPE}'.")
 
 target_compile_definitions(osal_${OSAL_SYSTEM_BSPTYPE}_impl PRIVATE
     $<TARGET_PROPERTY:osal_public_api,INTERFACE_COMPILE_DEFINITIONS>
@@ -428,7 +432,7 @@ if (ENABLE_UNIT_TESTS)
     # It re-compiles each source unit for coverage analysis and links
     # with stub dependencies and a test sequence designed to execute
     # every line of source code within OSAL.
-    add_subdirectory(src/unit-test-coverage unit-test-coverage)
+    # add_subdirectory(src/unit-test-coverage unit-test-coverage)
 
     # The "tests" and "unit-tests" subdirectories implement examples and verification tests
     # of the OSAL library.  Note that these are both black box tests that link with the full

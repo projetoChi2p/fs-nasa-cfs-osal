@@ -37,6 +37,7 @@
 #include "uttest.h"
 
 #include "bsp-impl.h"
+#include <os-shared-globaldefs.h>
 
 /*
 **  Local Variables
@@ -108,6 +109,7 @@ void UT_BSP_StartTestSegment(uint32 SegmentNumber, const char *SegmentName)
 {
     char ReportBuffer[128];
 
+    // OS_DEBUG("segName: %s\n", SegmentName);
     snprintf(ReportBuffer, sizeof(ReportBuffer), "%02u %s", (unsigned int)SegmentNumber, SegmentName);
     UT_BSP_DoText(UTASSERT_CASETYPE_BEGIN, ReportBuffer);
 }

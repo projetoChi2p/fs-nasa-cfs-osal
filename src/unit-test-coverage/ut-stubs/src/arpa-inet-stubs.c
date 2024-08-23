@@ -20,7 +20,7 @@
  * \brief    Stubs for arpa/inet.h
  * \ingroup  ut-stubs
  */
-#include <arpa/inet.h>
+// #include <arpa/inet.h>
 #include "utstubs.h"
 #include "OCS_arpa_inet.h"
 
