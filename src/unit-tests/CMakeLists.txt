@@ -9,7 +9,10 @@ enable_testing()
 
 include_directories(inc)
 
-add_subdirectory(oscore-test)
+# nucleo f767 does not support osal_core_UT, it overflows RAM
+if (NOT (OSAL_SYSTEM_BSPTYPE STREQUAL "nucleo-f767-freertos"))
+    add_subdirectory(oscore-test)
+endif()
 add_subdirectory(osloader-test)
 add_subdirectory(osfilesys-test)
 add_subdirectory(osfile-test)
