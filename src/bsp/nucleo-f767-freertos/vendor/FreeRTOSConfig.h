@@ -33,11 +33,11 @@
 
 
 #if (defined(__arm__) && !defined(__linux__) && defined(__GNUC__))
-// TODO: do not forget to 
 #include <stdint.h>
 #include <stm32f767xx.h>
 extern uint32_t SystemCoreClock;
-#define PLATFORM_STACK_MIN 256
+// FIXME ???
+#define PLATFORM_STACK_MIN 128
 #define PLATFORM_HEAP_SIZE (150 * 1024) //(211 * 1024)
 
 #else
