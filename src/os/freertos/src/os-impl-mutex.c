@@ -42,7 +42,7 @@ int32 OS_MutSemGive_Impl(const OS_object_token_t *token){
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, *token);
 
-    if(xSemaphoreGive(impl->xMutex) != pdTRUE){
+    if(xSemaphoreGiveRecursive(impl->xMutex) != pdTRUE){
         return OS_ERROR;
     }
 
@@ -57,7 +57,7 @@ int32 OS_MutSemTake_Impl(const OS_object_token_t *token){
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, *token);
 
-    if(xSemaphoreTake(impl->xMutex, portMAX_DELAY) != pdTRUE){
+    if(xSemaphoreTakeRecursive(impl->xMutex, portMAX_DELAY) != pdTRUE){
         return OS_ERROR;
     }
 

@@ -136,7 +136,9 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
             &impl->obj_id,
             OS_FreeRTOS_MapOsalPriority(task->priority),
             task->stack_pointer, 
-            impl->xTaskBuffer);
+            impl->xTaskBuffer
+        );
+
         return OS_SUCCESS;
     }
 
