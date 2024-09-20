@@ -105,15 +105,16 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
 
 
 
+    impl->xTaskBuffer = NULL;
     impl->obj_id = OS_ObjectIdToInteger(OS_ObjectIdFromToken(token));
     sprintf(impl->obj_id_str, "%lu", impl->obj_id);
 
     //OS_DebugPrintf(1, __func__, __LINE__, "TASK: %s STACK: %d\n", impl->obj_id_str, task->stack_size);
 
-    // create task
+    //  create task
     //  xTaskCreate allocates from FreeRTOS heap
     //  xTaskCreateStatic is allocated ahead of calling OS_TaskCreate (with task->stack_pointer)
-    if(task->stack_pointer == NULL){
+    if (task->stack_pointer == NULL) {
         xReturnCode = xTaskCreate(
             OS_FreeRTOS_TaskEntryPoint,
             impl->obj_id_str,
@@ -122,9 +123,21 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
             OS_FreeRTOS_MapOsalPriority(task->priority),
             (TaskHandle_t *) &impl->xTask  // pxCreatedTask handle
         );
-    }else{
-        OS_printf("Providing an already allocated stack to OS_TaskCreate is not implemented.\n");
-        return OS_ERROR;
+    }
+    else
+    {
+        // Task stack is already allocated, so it uses StaticTask to do not reallocated the stack.
+        // This requires to allocate xTaskBuffer, and by consequence, desalocate when delete the task.
+        impl->xTaskBuffer = (StaticTask_t *)pvPortMalloc(sizeof(StaticTask_t));
+        impl->xTask = xTaskCreateStatic(
+            OS_FreeRTOS_TaskEntryPoint,         
+            impl->obj_id_str,                  
+            task->stack_size / sizeof(StackType_t),
+            &impl->obj_id,
+            OS_FreeRTOS_MapOsalPriority(task->priority),
+            task->stack_pointer, 
+            impl->xTaskBuffer);
+        return OS_SUCCESS;
     }
 
 
@@ -143,6 +156,12 @@ int32 OS_TaskDelete_Impl(const OS_object_token_t *token){
     OS_impl_task_internal_record_t *impl;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_task_table, *token);
+
+    // xTaskBuffer diferent than NULL means that xTaskCreateStatic was used instead xTaskCreate.
+    if (impl->xTaskBuffer != NULL)  {
+        vPortFree(impl->xTaskBuffer);
+        impl->xTaskBuffer = NULL;
+    }
 
     vTaskDelete(impl->xTask);
 

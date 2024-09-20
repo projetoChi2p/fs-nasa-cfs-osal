@@ -8,6 +8,7 @@
 
 typedef struct
 {
+    StaticTask_t* xTaskBuffer;
     TaskHandle_t xTask;
     osal_id_t obj_id;
     char obj_id_str[10];
