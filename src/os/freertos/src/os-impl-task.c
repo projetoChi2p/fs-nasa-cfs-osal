@@ -139,11 +139,19 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
             impl->xTaskBuffer
         );
 
-        return OS_SUCCESS;
+        /*
+        If neither puxStackBuffer or pxTaskBuffer are NULL then the task will be created, and the task's handle is returned.
+        If either puxStackBuffer or pxTaskBuffer is NULL then the task will not be created and NULL will be returned.
+        */
+        if (impl->xTask == NULL) {
+            xReturnCode = pdFALSE;
+        }
+        else {
+            xReturnCode = pdTRUE;
+        }
     }
 
-
-    if(xReturnCode != pdTRUE){
+    if (xReturnCode != pdTRUE){
         OS_printf("xTaskCreate %s failed.\n", task->task_name);
         return OS_ERROR;
     }
