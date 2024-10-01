@@ -102,12 +102,19 @@ int32 OS_CountSemTimedWait_Impl(const OS_object_token_t *token, uint32 msecs){
  ------------------------------------------------------------------*/
 int32 OS_CountSemDelete_Impl(const OS_object_token_t *token){
     OS_impl_count_sem_internal_record_t *impl;
+    int32 sem_count;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_count_sem_table, *token);
 
-    // @FIXME add OS_ERROR and unit test for this case:
+    sem_count = uxSemaphoreGetCount(impl->xCountSem);
+
     // "Do not delete a semaphore that has tasks blocked on it"
     // see: https://www.freertos.org/a00113.html#vSemaphoreDelete
+    /* If he semaphore is a binary semaphore then 1 is returned if the semaphore is available, and 0 is returned if the semaphore is not available.*/
+    if (sem_count == 0) {
+        return OS_ERROR;
+    }
+
     vSemaphoreDelete(impl->xCountSem);
 
     return OS_SUCCESS;
@@ -117,5 +124,18 @@ int32 OS_CountSemDelete_Impl(const OS_object_token_t *token){
    Function: OS_CountSemGetInfo_Impl
  ------------------------------------------------------------------*/
 int32 OS_CountSemGetInfo_Impl(const OS_object_token_t *token, OS_count_sem_prop_t *count_prop){
+    OS_impl_count_sem_internal_record_t* impl;
+
+    impl = OS_OBJECT_TABLE_GET(OS_impl_count_sem_table, *token);
+
+    if (count_prop == NULL) {
+        return OS_INVALID_POINTER;
+    }
+
+    // TODO:
+    // count_prop->name = ??
+    // count_prop->creator = ??
+    count_prop->value = uxSemaphoreGetCount(impl->xCountSem);
+
     return OS_SUCCESS;
 }

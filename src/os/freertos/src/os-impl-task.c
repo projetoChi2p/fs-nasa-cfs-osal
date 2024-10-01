@@ -54,6 +54,35 @@ UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
 }
 
 
+osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority)
+{
+    // TODO: finish this implementation
+    osal_priority_t osal_priority;
+
+
+    //osal highest priority is zero
+    //osal lowest priority is OS_MAX_TASK_PRIORITY
+    //freertos highest is configMAX_PRIORITIES
+    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
+
+    /**
+     * OSAL priorities are in reverse order, and range
+     * from 0 (highest; will preempt all other tasks) to
+     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
+    */
+
+    if (priority < 0) {
+        priority = 0;
+    }
+    else if (priority > configMAX_PRIORITIES)
+    {
+        priority = configMAX_PRIORITIES;
+    }
+
+    osal_priority = OS_MAX_TASK_PRIORITY - (priority * (OS_MAX_TASK_PRIORITY / configMAX_PRIORITIES));
+
+    return osal_priority;
+}
 
 /*----------------------------------------------------------------
  * Function: OS_FreeRTOS_TaskAPI_Impl_Init
@@ -77,11 +106,11 @@ static void OS_FreeRTOS_TaskEntryPoint(void *pvParameters)
 int32 OS_TaskMatch_Impl(const OS_object_token_t *token){
     // OS_task_internal_record_t *task;
     OS_impl_task_internal_record_t *impl;
+    TaskHandle_t current_task;
 
     // task = OS_OBJECT_TABLE_GET(OS_task_table, *token);
     impl = OS_OBJECT_TABLE_GET(OS_impl_task_table, *token);
 
-    TaskHandle_t current_task;
     current_task = xTaskGetCurrentTaskHandle();
 
     if(impl->xTask == current_task){
@@ -102,8 +131,6 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_task_table, *token);
     task = OS_OBJECT_TABLE_GET(OS_task_table, *token);
-
-
 
     impl->xTaskBuffer = NULL;
     impl->obj_id = OS_ObjectIdToInteger(OS_ObjectIdFromToken(token));
@@ -229,18 +256,37 @@ int32 OS_TaskSetPriority_Impl(const OS_object_token_t *token, osal_priority_t ne
 osal_id_t OS_TaskGetId_Impl(void){
     osal_id_t global_task_id;
     char *task_name;
+
     task_name = pcTaskGetName(NULL);
-    if(sscanf(task_name, "%lu", &global_task_id) == 1){
+
+    if (sscanf(task_name, "%lu", &global_task_id) == 1){
         return global_task_id;
     }
-    return 0;
+
+    return OS_SUCCESS;
 }
 
 /*----------------------------------------------------------------
    Function: OS_TaskGetInfo_Impl
  ------------------------------------------------------------------*/
 int32 OS_TaskGetInfo_Impl(const OS_object_token_t *token, OS_task_prop_t *task_prop){
-  return OS_ERROR; // @FIXME
+    OS_impl_task_internal_record_t *impl;
+    TaskStatus_t xTaskDetails;
+
+    if (task_prop == NULL) {
+        return OS_INVALID_POINTER;
+    }
+
+    impl = OS_OBJECT_TABLE_GET(OS_impl_task_table, *token);
+
+    vTaskGetInfo(impl->xTask, &xTaskDetails, pdTRUE, eInvalid);
+
+    // TODO
+    strcpy(task_prop->name, xTaskDetails.pcTaskName);
+    // task_prop->creator = NULL;
+    // task_prop->stack_size = OS_MapFreeRTOSPriority(xTaskDetails.uxBasePriority);
+
+    return OS_ERROR;
 }
 
 /*----------------------------------------------------------------
@@ -257,7 +303,7 @@ int32 OS_TaskRegister_Impl(osal_id_t global_task_id){
    Function: OS_TaskIdMatchSystemData_Impl
  ------------------------------------------------------------------*/
 bool OS_TaskIdMatchSystemData_Impl(void *ref, const OS_object_token_t *token, const OS_common_record_t *obj){
-    return false; // @FIXME
+    return OS_ERROR; // @FIXME
 }
 
 /*----------------------------------------------------------------
