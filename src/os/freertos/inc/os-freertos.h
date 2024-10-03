@@ -2,11 +2,11 @@
 #define INCLUDE_OS_FREERTOS_H
 
 // FreeRTOS headers
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/timers.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+#include "queue.h"
+#include "timers.h"
 
 // standard library
 #include <stdio.h>

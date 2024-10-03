@@ -3,9 +3,9 @@
 #include "os-shared-idmap.h"
 #include "os-shared-common.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 #define OS_CONSOLE_ASYNC          false
 #define OS_CONSOLE_TASK_PRIORITY  2
