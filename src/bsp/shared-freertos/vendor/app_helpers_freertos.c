@@ -4,14 +4,12 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <unistd.h>
-#include <stdarg.h>
 #include <signal.h>
-#include <string.h>
 #include <errno.h>
 #include <sys/select.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -19,10 +17,10 @@
 
 #include "app_helpers.h"
 
+#include "osapi.h"
+
 #define EXCP_M "M"
 #define EXCP_O "O"
-
-
 
 
 /* We are using the FreeRTOS tick as a "high resolution" time base
@@ -51,14 +49,53 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
     configconfigCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
     function is called if a stack overflow is detected. */
 	/* The stack space has been execeeded for a task, considering allocating more. */
-    
-    HLP_vConsolePrintFormattedBspUnlocked("vApplicationStackOverflowHook(%p, %s): ABORT [%s:%d]\n", xTask, pcTaskName, __FILE__, __LINE__);
+
+    unsigned long ul;
+    osal_id_t task_id;
+    OS_task_prop_t task_prop;
+    int length;
+    int i;
+    int isnumber;
+    int osal_result;
+
+    length = strlen (pcTaskName);
+    isnumber = 1;
+    for (i=0;i<length; i++)
+    {
+        if (!isdigit(pcTaskName[i]))
+        {
+            isnumber = 0;
+            break;
+        }
+    }
+    char *osal_name;
+    if (isnumber)
+    {
+        ul = atol(pcTaskName);
+        task_id = OS_ObjectIdFromInteger(ul);
+        osal_result = OS_TaskGetInfo(task_id, &task_prop);
+        if (osal_result == OS_SUCCESS)
+        {
+            osal_name = task_prop.name;
+        }
+        else
+        {
+            osal_name = "unknown";
+        }
+    }
+    else
+    {
+        osal_name = "not OSAL";
+    }
+
+    HLP_vConsolePrintFormattedBaremetal("vApplicationStackOverflowHook(%s/%s [%p]): ABORT [%s:%d]\n", pcTaskName, osal_name, xTask, __FILE__, __LINE__);
     for (;;);
 }
 
 
 void vApplicationTickHook(void)
 {
+    // May be called under ISR stack
     HLP_vIncTick();
 }
 
@@ -84,6 +121,16 @@ void HLP_vConsoleInit( void )
     xStdioMutex = xSemaphoreCreateMutexStatic( &xStdioMutexBuffer );
 }
 
+void HLP_vConsolePrintFormattedBaremetal( const char * Format, ... ) {
+    va_list va;
+
+    va_start(va, Format);
+    vsnprintf(hlp_console_printf_buffer, HLP_CONSOLE_PRINTF_BUFFER_SIZE-1, Format, va);
+    va_end(va);
+    hlp_console_printf_buffer[HLP_CONSOLE_PRINTF_BUFFER_SIZE-1] = '\0';
+
+    HLP_vConsolePrintBytesBaremetal( (uint8_t*)hlp_console_printf_buffer, strlen(hlp_console_printf_buffer) );
+}
 
 
 void HLP_vConsolePrintFormatted( const char * Format, ... ) {
@@ -230,7 +277,7 @@ void vAssertCalled( const char * const pcFileName,
         if( xPrinted == pdFALSE )
         {
             xPrinted = pdTRUE;
-            HLP_vConsolePrintFormattedBspLockUnknown("vAssertCalled() [%s:%d]\n", pcFileName, ulLine);
+            HLP_vConsolePrintFormattedBaremetal("vAssertCalled() [%s:%d]\n", pcFileName, ulLine);
         }
 
         /* You can step out of this function to debug the assertion by using

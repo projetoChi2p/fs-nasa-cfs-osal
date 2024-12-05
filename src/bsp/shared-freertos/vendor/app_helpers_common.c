@@ -7,10 +7,6 @@
 
 #include "app_helpers.h"
 
-
-
-
-
 #define DEBUG_PRINT_NUMBER 0
 
 static void vPrintNumber(
@@ -317,9 +313,6 @@ int HLP_bIsBigEndian(void) {
 
     return e.c[0];
 }
-
-
-
 
 uint8_t HLP_u8Maj(volatile const uint8_t v1, volatile const uint8_t v2, volatile const uint8_t v3) {
     return ((v2 & v3) | (v1 & v3) | (v1 & v2) | (v1 & v2 & v3));

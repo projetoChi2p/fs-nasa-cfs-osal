@@ -4,8 +4,8 @@
 #include "osapi.h"
 #include "bsp-impl.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #ifndef MAX_CONSTANT
 #define MAX_CONSTANT(a,b)  (a > b ? a : b)

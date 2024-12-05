@@ -15,6 +15,7 @@
 typedef struct
 {
     SemaphoreHandle_t xCountSem;
+    uint32 initial_value;
 } OS_impl_count_sem_internal_record_t;
 
 extern OS_impl_count_sem_internal_record_t OS_impl_count_sem_table[OS_MAX_COUNT_SEMAPHORES];

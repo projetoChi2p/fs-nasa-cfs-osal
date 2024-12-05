@@ -2,11 +2,11 @@
 #define INCLUDE_OS_FREERTOS_H
 
 // FreeRTOS headers
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "freertos/queue.h"
-#include "freertos/timers.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+#include "queue.h"
+#include "timers.h"
 
 // standard library
 #include <stdio.h>
@@ -31,10 +31,36 @@
 #include "osapi.h"
 #include "common_types.h"
 
+
+/****************************************************************************************
+                                     DEFINES
+ ***************************************************************************************/
+
 #ifndef MAX_CONSTANT
 #define MAX_CONSTANT(a,b)  (a > b ? a : b)
 #endif
 
+
+/****************************************************************************************
+                                    TYPEDEFS
+ ***************************************************************************************/
+
+typedef struct
+{
+    TaskHandle_t xCurrentIdlingTask;
+    TickType_t   localtime_epoch_freertos;
+    OS_time_t    localtime_epoch_osal;
+} FreeRTOS_GlobalVars_t;
+
+/****************************************************************************************
+                                   GLOBAL DATA
+ ***************************************************************************************/
+
+extern FreeRTOS_GlobalVars_t FreeRTOS_GlobalVars;
+
+/****************************************************************************************
+                       FreeRTOS IMPLEMENTATION FUNCTION PROTOTYPES
+ ***************************************************************************************/
 
 int32 PSP_Console_Init(void);
 

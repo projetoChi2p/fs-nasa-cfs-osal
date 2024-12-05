@@ -3,9 +3,9 @@
 #include "os-shared-idmap.h"
 #include "os-shared-common.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 #define OS_CONSOLE_ASYNC          false
 #define OS_CONSOLE_TASK_PRIORITY  2
@@ -26,7 +26,7 @@ static void OS_ConsoleTask_Entry(void *pvParameters)
 {
     // @FIXME we pass `token->obj_id` as `arg` to match the RTEMS impl.
     // but should consider just passing token around as `pvParameters` param
-    int32 arg = (int32) pvParameters;
+    int32 arg = (int64) pvParameters;
 
     OS_object_token_t token;
     OS_impl_console_internal_record_t *local;
@@ -67,12 +67,13 @@ int32 OS_ConsoleCreate_Impl(const OS_object_token_t *token){
     local->console_sem = xSemaphoreCreateBinary();
     xSemaphoreGive(local->console_sem);
 
+    // TODO: check uint64 
     // create task
     xReturnCode = xTaskCreate(
         &OS_ConsoleTask_Entry,
         "console task",
         OS_CONSOLE_TASK_STACKSIZE,
-        (void*) token->obj_id,  // pvParameters
+        (void*) ((uint64)token->obj_id),  // pvParameters
         OS_CONSOLE_TASK_PRIORITY,
         &local->task_handle  // pxCreatedTask handle
     );

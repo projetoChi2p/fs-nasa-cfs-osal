@@ -30,6 +30,8 @@ void OS_BSP_Shutdown_Impl(void){
     #if (defined(__arm__) && !defined(__linux__))
         // OS_printf("PSP CFE Task complete. vTaskDelete(self).\n");
         vTaskDelete(NULL);
+    #elif defined(__riscv)
+        vTaskDelete(NULL);
     #elif (defined(__i386__) && defined(__linux__))
         exit(0);
     #else
@@ -54,8 +56,6 @@ void PSP_CFE_Task(void *pvParameters)
     OS_BSP_Shutdown_Impl();
 }
 
-// @TODO FBV 2024-01-05 use HLP_vSystemConfig() prototype from header
-void HLP_vSystemConfig(void);
 // @TODO FBV 2024-01-05 use PSP_Console_Init() prototype from header
 int32 PSP_Console_Init(void);
 

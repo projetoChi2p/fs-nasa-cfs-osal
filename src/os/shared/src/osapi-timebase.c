@@ -385,6 +385,7 @@ void OS_TimeBase_CallbackThread(osal_id_t timebase_id)
     /* Grab the relevant info from the global structure */
     if (OS_ObjectIdGetById(OS_LOCK_MODE_GLOBAL, OS_OBJECT_TYPE_OS_TIMEBASE, timebase_id, &token) != 0)
     {
+        OS_DEBUG("ERROR: Something went wrong with OS_TimeBase_CallbackThread(). Abnormal termination.\n");
         /* Something went wrong - abort this thread */
         return;
     }

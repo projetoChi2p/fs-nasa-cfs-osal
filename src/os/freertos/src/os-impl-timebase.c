@@ -40,10 +40,22 @@
 #include "os-freertos.h"
 
 /****************************************************************************************
+                                     DEFINES
+ ***************************************************************************************/
+
+#define OS_TIMEBASE_TASK_STACK_SIZE (MAX_CONSTANT(256, configMINIMAL_STACK_SIZE))
+
+#define OS_TIMEBASE_INTERFACE_LOCK_TIMEOUT_TICKS (pdMS_TO_TICKS(10))
+#define OS_TIMEBASE_TICK_TIMEOUT_TICKS (pdMS_TO_TICKS(10))
+
+#define OS_TIMEBASE_SHUTDOWN_ACK_WAIT_TICKS (pdMS_TO_TICKS(10))
+
+/****************************************************************************************
                                      GLOBALS
  ***************************************************************************************/
 
 OS_impl_timebase_internal_record_t OS_impl_timebase_table[OS_MAX_TIMEBASES];
+
 
 /****************************************************************************************
                                 INTERNAL FUNCTIONS
@@ -75,11 +87,15 @@ static void OS_FreeRTOS_TimeBase_TimerCallback(TimerHandle_t xInternalHandle)
 
         /* Feed user task
          */
-        if(xSemaphoreGive(local->tick_binary_sem) != pdTRUE){
-            OS_DEBUG("OS_BinSemGive_Impl xSemaphoreGive error\n");
-            //return OS_ERROR;
+        if (local->tick_binary_sem != NULL)
+        {
+            //local->tick_binary_sem_active = 1;
+            if(xSemaphoreGive(local->tick_binary_sem) != pdTRUE){
+                OS_DEBUG("OS_BinSemGive_Impl xSemaphoreGive error\n");
+                //return OS_ERROR;
+            }
+            //tick_binary_sem_active = 0;
         }
-
     }
 }
 
@@ -105,55 +121,60 @@ static uint32 OS_FreeRTOS_TimeBase_SemWaitImpl(osal_id_t timebase_id)
     {
         impl = OS_OBJECT_TABLE_GET(OS_impl_timebase_table, token);
 
-        while (xSemaphoreTake(impl->tick_binary_sem, portMAX_DELAY) != pdTRUE){
-            //return OS_ERROR;
+        while (1) {
+            if (impl->tick_binary_sem_shutdown || (impl->handler_mutex==NULL)) {
+                impl->tick_binary_sem_shutdown_ack = 1;
+                break;
+            }
+            else {
+                impl->tick_binary_sem_active = 1;
+                if(xSemaphoreTake(impl->tick_binary_sem, OS_TIMEBASE_TICK_TIMEOUT_TICKS) == pdTRUE){
+                    break;
+                    impl->tick_binary_sem_active = 0;
+                }
+            }
         }
-        /*
-         * Pend for the tick arrival
-         */
-        //if (ret != 0)
-        //{
-        //    /*
-        //     * the sigwait call failed.
-        //     * returning 0 will cause the process to repeat.
-        //     */
-        //}
-
-        /*
-         * Determine how long this tick was.
-         * Note that there are plenty of ways this become wrong if the timer
-         * is reset right around the time a tick comes in.  However, it is
-         * impossible to guarantee the behavior of a reset if the timer is running.
-         * (This is not an expected use-case anyway; the timer should be set and forget)
-         */
-        if (impl->reset_first_fired == 0)
-        {
-            tick_time_usecs = impl->configured_interval_time_usecs;
+        if (impl->tick_binary_sem_shutdown || (impl->handler_mutex==NULL)) {
+            impl->tick_binary_sem_shutdown_ack = 1;
         }
         else
         {
             /*
-             * Reset the timer and make it auto-reload, but only if first fire and an interval was selected.
-             * We create dormant timer without auto-reload because we don't known start and interval times, which may be different, upon creation.
-             * During timer set we keep without auto-reload and set start time as period.
-             * Finally, here, after start time, we set the interval time as period and enable auto-reload.
-             * 
-             * There is two sources of delay/uncertainty in this transition from start time to interval time:
-             * - First, there is a delay between the instant when OS_FreeRTOS_TimeBase_TimerCallback() and xSemaphoreGive() and
-             *   the instant this OS_FreeRTOS_TimeBase_SemWaitImpl() passed xSemaphoreTake().
-             * - Second, xTimerChangePeriod() only enqueues the change operation, which will be effective only later
-             *   when FreeRTOS timer prvTimerTask() calls prvProcessReceivedCommands().
+             * Determine how long this tick was.
+             * Note that there are plenty of ways this become wrong if the timer
+             * is reset right around the time a tick comes in.  However, it is
+             * impossible to guarantee the behavior of a reset if the timer is running.
+             * (This is not an expected use-case anyway; the timer should be set and forget)
              */
-            if (impl->interval_time_ticks > 0)
+            if (impl->reset_first_fired == 0)
             {
-                vTimerSetReloadMode(impl->timer_handle, pdTRUE);
-                if ( xTimerChangePeriod(impl->timer_handle, impl->interval_time_ticks, portMAX_DELAY) != pdPASS ) {
-                    OS_DEBUG("ERROR: xTimerChangePeriod().\n")
-                }
+                tick_time_usecs = impl->configured_interval_time_usecs;
             }
+            else
+            {
+                /*
+                 * Reset the timer and make it auto-reload, but only if first fire and an interval was selected.
+                 * We create dormant timer without auto-reload because we don't known start and interval times, which may be different, upon creation.
+                 * During timer set we keep without auto-reload and set start time as period.
+                 * Finally, here, after start time, we set the interval time as period and enable auto-reload.
+                 * 
+                 * There is two sources of delay/uncertainty in this transition from start time to interval time:
+                 * - First, there is a delay between the instant when OS_FreeRTOS_TimeBase_TimerCallback() and xSemaphoreGive() and
+                 *   the instant this OS_FreeRTOS_TimeBase_SemWaitImpl() passed xSemaphoreTake().
+                 * - Second, xTimerChangePeriod() only enqueues the change operation, which will be effective only later
+                 *   when FreeRTOS timer prvTimerTask() calls prvProcessReceivedCommands().
+                 */
+                if (impl->interval_time_ticks > 0)
+                {
+                    vTimerSetReloadMode(impl->timer_handle, pdTRUE);
+                    if ( xTimerChangePeriod(impl->timer_handle, impl->interval_time_ticks, portMAX_DELAY) != pdPASS ) {
+                        OS_DEBUG("ERROR: xTimerChangePeriod().\n")
+                    }
+                }
 
-            tick_time_usecs = impl->configured_start_time_usecs;
-            impl->reset_first_fired = 0;
+                tick_time_usecs = impl->configured_start_time_usecs;
+                impl->reset_first_fired = 0;
+            }
         }
     }
 
@@ -202,6 +223,11 @@ static void OS_FreeRTOS_TimeBaseTaskEntryPoint(void *pvParameters)
 
     OS_TimeBase_CallbackThread(timebase_id);
 
+    vTaskSuspend( NULL );
+    while (1)
+    {
+        taskYIELD();
+    }
 }
 
 
@@ -220,14 +246,14 @@ int32 OS_FreeRTOS_TimeBaseAPI_Impl_Init(void)
     if( (INCLUDE_vTaskDelay != 1) || (!configUSE_TIMERS) ) {
         OS_DEBUG("ERROR: this implementation requires FreeRTOSConfig.h INCLUDE_vTaskDelay, configSUPPORT_STATIC_ALLOCATION and configUSE_TIMERS to be enabled.\n")
         return OS_ERROR;
-    }    
+    }
 
     OS_SharedGlobalVars.TicksPerSecond = (int32) configTICK_RATE_HZ;
 
     OS_SharedGlobalVars.MicroSecPerTick = 1000000 / configTICK_RATE_HZ;
 
     return OS_SUCCESS;
-} 
+}
 
 /****************************************************************************************
                                    Time Base API
@@ -246,9 +272,22 @@ void OS_TimeBaseLock_Impl(const OS_object_token_t *token)
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_timebase_table, *token);
 
-    /* A block time of portMAX_DELAY can be used to block indefinitely */
-    if(xSemaphoreTake(impl->handler_mutex, portMAX_DELAY) != pdTRUE){
-        OS_DEBUG("xSemaphoreTake(handler_mutex) failed.\n");
+    while (1) {
+        if (impl->handler_mutex_shutdown || (impl->handler_mutex==NULL)) {
+            impl->handler_mutex_shutdown_ack = 1;
+            break;
+        }
+        else {
+            impl->handler_mutex_active = 1;
+            if(xSemaphoreTake(impl->handler_mutex, OS_TIMEBASE_INTERFACE_LOCK_TIMEOUT_TICKS) == pdTRUE){
+                impl->handler_mutex_active = 0;
+                break;
+            }
+        }
+    }
+
+    if (impl->handler_mutex_shutdown || (impl->handler_mutex==NULL)) {
+        impl->handler_mutex_shutdown_ack = 1;
     }
 
     return;
@@ -266,8 +305,12 @@ void OS_TimeBaseUnlock_Impl(const OS_object_token_t *token)
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_timebase_table, *token);
 
-    if(xSemaphoreGive(impl->handler_mutex) != pdTRUE){
-        OS_DEBUG("xSemaphoreGive(handler_mutex) failed.\n");
+    if ( impl->handler_mutex != NULL ) 
+    {
+        if(xSemaphoreGive(impl->handler_mutex) != pdTRUE)
+        {
+            OS_DEBUG("xSemaphoreGive(handler_mutex) failed.\n");
+        }
     }
 
     return;
@@ -325,8 +368,16 @@ int32 OS_TimeBaseCreate_Impl(const OS_object_token_t *token)
     local->interval_time_ticks            = 0;
     local->reset_first_fired              = 1;
 
+    local->tick_binary_sem_active         = 0;
+    local->tick_binary_sem_shutdown       = 0;
+    local->tick_binary_sem_shutdown_ack   = 0;
+
+    local->handler_mutex_active           = 0;
+    local->handler_mutex_shutdown         = 0;
+    local->handler_mutex_shutdown_ack     = 0;
+
     /*
-     * Set up the necessary OS constructs for timer, only is no external sync 
+     * Set up the necessary OS constructs for timer, only if no external sync 
      * function is provided.
      */
     if (local->internal_sync)
@@ -405,7 +456,7 @@ int32 OS_TimeBaseCreate_Impl(const OS_object_token_t *token)
         if ( xTaskCreate(
                     OS_FreeRTOS_TimeBaseTaskEntryPoint, /* task entry point */
                     "OS_TIMEBASE",                      /* task name */
-                    configMINIMAL_STACK_SIZE,           /* task stack size to be dynamically allocated */
+                    OS_TIMEBASE_TASK_STACK_SIZE,        /* task stack size to be dynamically allocated */
                     timebase_id_variant.opaque_arg,     /* pvParameters */
                     configTIMER_TASK_PRIORITY,
                     &local->handler_task ) != pdTRUE )
@@ -418,14 +469,16 @@ int32 OS_TimeBaseCreate_Impl(const OS_object_token_t *token)
         if (return_code != OS_SUCCESS)
         {
             /* Also delete the resources we allocated earlier */
-
-            /* Post delete on timer command queue. */
-            if ( xTimerDelete( local->timer_handle, portMAX_DELAY ) != pdPASS ) {
-                OS_printf("Failed to post timer delete command .\n");
-            };
-            /* It is safe to delete semaphore here because there is no task blocked on it. */
-            vSemaphoreDelete(local->handler_mutex);
-            vSemaphoreDelete(local->tick_binary_sem);
+            if (local->internal_sync)
+            {
+                /* Post delete on timer command queue. */
+                if ( xTimerDelete( local->timer_handle, portMAX_DELAY ) != pdPASS ) {
+                    OS_printf("Failed to post timer delete command .\n");
+                };
+                /* It is safe to delete semaphore here because there is no task blocked on it. */
+                vSemaphoreDelete(local->handler_mutex);
+                vSemaphoreDelete(local->tick_binary_sem);
+            }
             return return_code;
         }
     }
@@ -545,8 +598,57 @@ int32 OS_TimeBaseSet_Impl(const OS_object_token_t *token, uint32 start_time_usec
  *-----------------------------------------------------------------*/
 int32 OS_TimeBaseDelete_Impl(const OS_object_token_t *token)
 {
-    // @FIXME
-    OS_DEBUG("OS_ERR_NOT_IMPLEMENTED.\n");
-    return OS_ERR_NOT_IMPLEMENTED;
+    OS_impl_timebase_internal_record_t *impl;
+
+    impl = OS_OBJECT_TABLE_GET(OS_impl_timebase_table, *token);
+
+    /*
+     * Delete OS constructs supporting timer, allocated only if no 
+     * external sync function is provided.
+     */
+    if (impl->internal_sync)
+    {
+        SemaphoreHandle_t sem_handle;
+
+        /* It is only safe to delete semaphore when no more task blocked on it. 
+         */
+
+        sem_handle = impl->tick_binary_sem;
+        impl->tick_binary_sem = NULL;
+        impl->tick_binary_sem_shutdown = 1;
+        do {
+            vTaskDelay( OS_TIMEBASE_SHUTDOWN_ACK_WAIT_TICKS );
+        }
+        while (impl->tick_binary_sem_active && (!impl->tick_binary_sem_shutdown_ack));
+        vSemaphoreDelete(sem_handle);
+
+        sem_handle = impl->handler_mutex;
+        impl->handler_mutex = NULL;
+        impl->handler_mutex_shutdown = 1;
+        do {
+            vTaskDelay( OS_TIMEBASE_SHUTDOWN_ACK_WAIT_TICKS );
+        }
+        while (impl->handler_mutex_active && (!impl->handler_mutex_shutdown_ack));
+        vSemaphoreDelete(sem_handle);
+
+        /* Post delete on timer command queue. */
+        if ( xTimerDelete( impl->timer_handle, portMAX_DELAY ) != pdPASS ) {
+            OS_printf("Failed to post timer delete command .\n");
+        };
+    }
+
+
+    /*
+     * Timer handler/callback task always exists.
+     * If no external sync function provided, then 
+     * handler/callback task may be using timer object.
+     * Hence, it is safer to first kill the task, then the timer.
+     */
+    vTaskDelete(impl->handler_task);
+
+    /* Reset the table entry */
+    memset(impl, 0, sizeof(*impl));
+
+    return OS_SUCCESS;
 }
 

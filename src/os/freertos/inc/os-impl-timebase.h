@@ -24,6 +24,15 @@ typedef struct
     TimerHandle_t     timer_handle;                    /**< A handle to the FreeRTOS timer feeding the time base. */
     StaticTimer_t     timer_buffer;                    /**< Static memory for FreeRTOS timer. */
     uint8             reset_first_fired;               /**< Flag indicating if the timer is first fired (delayed start time) or not (elapsed interval time). */
+
+    uint8             tick_binary_sem_active;          /**< Semaphore in use. */
+    uint8             tick_binary_sem_shutdown;        /**< Semaphore shutdown request. */
+    uint8             tick_binary_sem_shutdown_ack;    /**< Semaphore shutdown request acknowledge. */
+
+    uint8             handler_mutex_active;            /**< Mutex in use. */
+    uint8             handler_mutex_shutdown;          /**< Mutex shutdown request. */
+    uint8             handler_mutex_shutdown_ack;      /**< Mutex shutdown request acknowledge. */
+
 } OS_impl_timebase_internal_record_t;
 
 extern OS_impl_timebase_internal_record_t OS_impl_timebase_table[OS_MAX_TIMEBASES];

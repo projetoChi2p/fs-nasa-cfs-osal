@@ -72,10 +72,18 @@ int32 OS_MutSemDelete_Impl(const OS_object_token_t *token){
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, *token);
 
+    if(impl->xMutex == NULL){
+        OS_printf("OS_MutSemDelete() non-existing mutex.\n");
+        return OS_ERROR;
+    }
+
     // @FIXME add OS_ERROR and unit test for this case:
     // "Do not delete a semaphore that has tasks blocked on it"
     // see: https://www.freertos.org/a00113.html#vSemaphoreDelete
     vSemaphoreDelete(impl->xMutex);
+
+    /* Reset the table entry */
+    memset(impl, 0, sizeof(*impl));
 
     return OS_SUCCESS;
 }
