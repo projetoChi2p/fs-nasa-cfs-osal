@@ -31,9 +31,12 @@
 #ifndef __HEADER_FREERTOS_PLUS_FAT_CONFIG_H__
 #define __HEADER_FREERTOS_PLUS_FAT_CONFIG_H__
 
+#ifdef DEBUG
 // Send FF_PRINTF to BSP_Console_Write
-//void OS_BSP_DEBUG_FF_PRINTF( const char* format, ...);
-//#define FF_PRINTF OS_BSP_DEBUG_FF_PRINTF
+    void OS_BSP_DEBUG_FF_PRINTF( const char* format, ...);
+    #define FF_PRINTF OS_BSP_DEBUG_FF_PRINTF
+#endif
+
 
 #define ffconfigMIN_CLUSTERS_FAT16 32  // defaults to 4096
 
@@ -56,7 +59,12 @@
 
 #define ffconfigUNICODE_UTF8_SUPPORT 1
 
-#define ffconfigFAT12_SUPPORT 0
+#define ffconfigFAT12_SUPPORT 1
+
+#if (ffconfigFAT12_SUPPORT != 0)
+// FBV 2024-12-21 Workaround for FreeRTOS+FAT
+#define FF_CreateError( x, id ) FF_createERR( x, id )
+#endif
 
 #define ffconfigOPTIMISE_UNALIGNED_ACCESS 1
 
@@ -92,7 +100,7 @@
 
 #define ffconfigMAX_PARTITIONS 1
 
-#define ffconfigMAX_FILE_SYS 2
+#define ffconfigMAX_FILE_SYS 4
 
 #define ffconfigDRIVER_BUSY_SLEEP_MS 100  // how long to wait when disk driver is busy
 

@@ -1,17 +1,12 @@
-#include_directories(${OSAL_FREERTOS_INC_DIR})
-#include_directories(${OSAL_FREERTOS_SRC_DIR}/portable/GCC/ARM_CM3)
 
 message("*** Inside cmake list ${CMAKE_CURRENT_LIST_FILE}.")
 message("*** Using OSAL_FREERTOS_SRC_DIR '${OSAL_FREERTOS_SRC_DIR}'.")
 message("*** Using OSAL_FREERTOS_INC_DIR '${OSAL_FREERTOS_INC_DIR}'.")
-message("*** Using OSAL_FREERTOS_PLUS_FAT_SRC_DIR '${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}'.")
-
 
 
 # FreeRTOS kernel
 include_directories(${OSAL_FREERTOS_INC_DIR})
 include_directories(${OSAL_FREERTOS_SRC_DIR}/include)
-#include_directories(${OSAL_FREERTOS_SRC_DIR}/portable/GCC/ARM_CM4F)
 FILE(GLOB FREERTOS_SOURCES
     ${OSAL_FREERTOS_SRC_DIR}/*.c
 )
@@ -22,10 +17,22 @@ FILE(GLOB FREERTOS_PORTABLE_SOURCES
     ${OSAL_FREERTOS_SRC_DIR}/portable/MemMang/heap_4.c
 )
 
-FILE(GLOB FATFS_SOURCES
-    ${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}/*.c
-    ${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}/portable/common/*.c
-)
+
+if(OSAL_RAMDISK_FILESYSTEM_IS_MFS)
+    message("*** Using OSAL_XILINX_MFS_SRC_DIR '${OSAL_XILINX_MFS_SRC_DIR}'.")
+    # Xilinx Memory Filesystem
+    FILE(GLOB FILESYSTEM_SOURCES
+        ${OSAL_XILINX_MFS_SRC_DIR}/src/mfs_filesys.c
+    )
+else()
+    message("*** Using OSAL_FREERTOS_PLUS_FAT_SRC_DIR '${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}'.")
+    # FreeRTOS + FAT Filesystem
+    FILE(GLOB FILESYSTEM_SOURCES
+        ${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}/*.c
+        ${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}/portable/common/*.c
+    )
+endif()
+
 
 include_directories(
     src
@@ -36,22 +43,22 @@ include_directories(
     vendor
 )
 
-FILE(GLOB BOOT_CODE
-    #vendor/init/startup_stm32f767xx.s
-)
 
 FILE(GLOB VENDOR_CODE
-    vendor/*.c
     ../shared-freertos/vendor/*.c
+    vendor/*.c
 )
 
-add_library(osal_pc-freertos-linux_impl OBJECT
+FILE(GLOB SOURCES
     ../shared-freertos/src/bsp_start.c
     ../shared-freertos/src/bsp_console.c
+)
+
+
+add_library(osal_pc-freertos-linux_impl OBJECT
     ${FREERTOS_SOURCES}
     ${FREERTOS_PORTABLE_SOURCES}
-    ${FATFS_SOURCES}
-    ${BOOT_CODE}
+    ${FILESYSTEM_SOURCES}
     ${VENDOR_CODE}
     ${SOURCES}
 )

@@ -31,7 +31,7 @@ char os_bsp_debug_printf_buffer[256];
 // OS_ConsoleOutput_Impl() inside OS_BSP_Lock_Impl()/OS_BSP_Unlock_Impl() block
 void OS_BSP_ConsoleOutput_Impl(const char *Str, size_t DataLen)
 {
-    HLP_vConsolePrintBytesBspLocked((uint8_t *)Str, DataLen);
+    HLP_vConsolePrintBytesBspLocked((const uint8_t *)Str, DataLen);
 }
 
 void OS_BSP_ConsoleSetMode_Impl(uint32 ModeBits)

@@ -121,6 +121,7 @@ void TimerTestTask(void)
 
     for (i = 0; i < NUMBER_OF_TIMERS && i < OS_MAX_TIMERS; i++)
     {
+        timer_counter[i] = 0;
         TimerStatus[i] = OS_TimerCreate(&TimerID[i], TimerName[i], &ClockAccuracy, &(test_func));
         UtAssert_True(TimerStatus[i] == OS_SUCCESS, "Timer %d Created RC=%d ID=%lx", i, (int)TimerStatus[i],
                       OS_ObjectIdToInteger(TimerID[i]));

@@ -4,8 +4,8 @@
 #include "osapi.h"
 #include "bsp-impl.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #ifndef MAX_CONSTANT
 #define MAX_CONSTANT(a,b)  (a > b ? a : b)
@@ -18,6 +18,9 @@
 typedef struct
 {
     SemaphoreHandle_t AccessMutex;
+    TaskHandle_t cfe_psp_task_handle;
+    TaskHandle_t console_task_handle;
+    TaskHandle_t timebase_task_handle;
 } OS_BSP_GenericFreeRtosGlobalData_t;
 
 /*

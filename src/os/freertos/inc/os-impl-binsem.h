@@ -9,6 +9,7 @@
 typedef struct
 {
     SemaphoreHandle_t xBinSem;
+    uint32 initial_value;
 } OS_impl_bin_sem_internal_record_t;
 
 extern OS_impl_bin_sem_internal_record_t OS_impl_bin_sem_table[OS_MAX_BIN_SEMAPHORES];

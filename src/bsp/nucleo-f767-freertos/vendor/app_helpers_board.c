@@ -233,7 +233,9 @@ void Error_Handler(void)
 
 int __io_putchar(int ch)
 {
-    ITM_SendChar(ch);
+    uint8_t u8 = ch;
+    HAL_UART_Transmit(g_phStm32UartConsole, &u8, 1, HAL_MAX_DELAY);
+
     return ch;
 }
 
@@ -445,3 +447,32 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
     // HAL_UART_Transmit() data arg is not const
     HAL_UART_Transmit(g_phStm32UartConsole, (uint8_t *) data, size, HAL_MAX_DELAY);
 }
+
+/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
+ * are allocating explicitly to enforce alignment or to put it inside
+ * arbitraty memory region.
+ */
+#if (configAPPLICATION_ALLOCATED_HEAP == 1)
+//__attribute__ ((section(".l2_scratchpad")))
+//__attribute__ ((aligned (8)))
+//__attribute__ ((section(".noinit.freertos_heap")))
+uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+#endif
+
+
+
+#if configGENERATE_RUN_TIME_STATS == 1
+
+static uint32_t g_tick_start;
+
+void HLP_vSystemConfigPerfCounter(void)
+{
+    g_tick_start = uwTick;
+}
+
+uint32_t HLP_ulSystemGetPerfCounter(void)
+{
+    return uwTick-g_tick_start;
+}
+
+#endif /* configGENERATE_RUN_TIME_STATS == 1 */

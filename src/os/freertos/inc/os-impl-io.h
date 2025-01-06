@@ -22,6 +22,8 @@
  * \file     os-impl-io.h
  * \ingroup  freertos
  * \author   joseph.p.hickey@nasa.gov
+ * \author   Patrick Paul (https://github.com/pztrick)
+ * \author   Fabio Benevenuti (UFRGS)
  *
  */
 
@@ -29,19 +31,25 @@
 #define INCLUDE_OS_IMPL_IO_H_
 
 #include <osconfig.h>
-//#include <stdbool.h>
-//#include <unistd.h>
 
+
+#ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+#else
 /* freertos-plus-fat */
 #include "portable/common/ff_ramdisk.h"
 #include "include/ff_stdio.h"
 #include "include/ff_headers.h"
+#endif
 
 typedef struct
 {
-    //int  fd;
-    //bool selectable;
-    FF_FILE *pxFile;
+    uint8_t fstype;
+#ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    int device; // Xilinx MFS device id
+    int fd;     // Xilinx MFS directory fd
+#else
+    FF_FILE *pxFile; // FreeRTOS+FAT File handle
+#endif
 } OS_impl_file_internal_record_t;
 
 /*

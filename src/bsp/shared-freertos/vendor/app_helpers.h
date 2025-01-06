@@ -138,6 +138,7 @@ void HLP_vConsoleInit( void );
 void HLP_vConsolePrintFormatted( const char * fmt, ... );
 void HLP_vConsolePrintBytesStdioUnlocked( const uint8_t *data, int size );
 void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size );
+void HLP_vConsolePrintFormattedBaremetal( const char * fmt, ... );
 
 #ifdef __cplusplus
 }

@@ -47,6 +47,15 @@ int32 OS_QueueDelete_Impl(const OS_object_token_t *token)
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_queue_table, *token);
 
+    if(impl->xQueue == NULL){
+        OS_printf("OS_BinSemDelete() non-existing semaphore.\n");
+        return OS_ERROR;
+    }
+
+    // @FIXME add OS_ERROR and unit test for this case:
+    // "Do not delete a semaphore that has tasks blocked on it"
+    // see: https://www.freertos.org/a00113.html#vSemaphoreDelete
+
     vQueueDelete(impl->xQueue);
 
     return OS_SUCCESS;

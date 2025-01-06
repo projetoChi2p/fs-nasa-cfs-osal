@@ -1,8 +1,19 @@
+/****************************************************************************************
+                                    INCLUDE FILES
+ ***************************************************************************************/
+
 #include <os-shared-globaldefs.h>
 #include "os-impl-binsem.h"
 
-// globals
+/****************************************************************************************
+                                     GLOBALS
+ ***************************************************************************************/
+
 OS_impl_bin_sem_internal_record_t OS_impl_bin_sem_table[OS_MAX_COUNT_SEMAPHORES];
+
+/****************************************************************************************
+                                INTERNAL FUNCTIONS
+ ***************************************************************************************/
 
 /*----------------------------------------------------------------
  * Function: OS_FreeRTOS_BinSemAPI_Impl_Init
@@ -20,7 +31,13 @@ int32 OS_FreeRTOS_BinSemAPI_Impl_Init(void)
 int32 OS_BinSemCreate_Impl(const OS_object_token_t *token, uint32 sem_initial_value, uint32 options){
     OS_impl_bin_sem_internal_record_t *impl;
 
+    // verify initial value does not exceed limit
+    if(sem_initial_value > OS_SEM_FULL){
+        return OS_INVALID_SEM_VALUE;
+    }
+
     impl    = OS_OBJECT_TABLE_GET(OS_impl_bin_sem_table, *token);
+
 
     impl->xBinSem = xSemaphoreCreateBinary();
 
@@ -28,8 +45,9 @@ int32 OS_BinSemCreate_Impl(const OS_object_token_t *token, uint32 sem_initial_va
         return OS_SEM_FAILURE;
     }
 
+    impl->initial_value = sem_initial_value;
     // release the sem immediately if initial value > 0
-    if(sem_initial_value >= 1){
+    if(sem_initial_value != OS_SEM_EMPTY) {
         OS_BinSemGive_Impl(token);
     }
 
@@ -56,7 +74,16 @@ int32 OS_BinSemGive_Impl(const OS_object_token_t *token){
  *-----------------------------------------------------------------*/
 int32 OS_BinSemFlush_Impl(const OS_object_token_t *token)
 {
-    return OS_ERROR; // @FIXME NOT IMPLEMENTED
+
+    // See also Qin Ha https://forums.freertos.org/t/semaphore-flush-function/12770/2
+    //It would be similar to, in a critical section:
+    // if( listLIST_IS_EMPTY( &( pxQueue->xTasksWaitingToReceive ) ) == pdFALSE )
+    // {
+    //    if( xTaskRemoveFromEventList( &( pxQueue->xTasksWaitingToReceive ) ) != pdFALSE )
+    //       {...}
+    // }
+
+    return OS_ERR_NOT_IMPLEMENTED; // @FIXME NOT IMPLEMENTED
 } /* end OS_BinSemFlush_Impl */
 
 /*----------------------------------------------------------------
@@ -105,20 +132,32 @@ int32 OS_BinSemTimedWait_Impl(const OS_object_token_t *token, uint32 msecs){
  ------------------------------------------------------------------*/
 int32 OS_BinSemDelete_Impl(const OS_object_token_t *token){
     OS_impl_bin_sem_internal_record_t *impl;
-    int32 sem_status;
+    //int32 sem_count;
 
     impl    = OS_OBJECT_TABLE_GET(OS_impl_bin_sem_table, *token);
 
-    sem_status = uxSemaphoreGetCount(impl->xBinSem);
-
-    // "Do not delete a semaphore that has tasks blocked on it"
-    // see: https://www.freertos.org/a00113.html#vSemaphoreDelete
-    /* If the semaphore is a binary semaphore then 1 is returned if the semaphore is available, and 0 is returned if the semaphore is not available.*/
-    if (sem_status == 0) {
+    if(impl->xBinSem == NULL){
+        OS_printf("OS_BinSemDelete() non-existing semaphore.\n");
         return OS_ERROR;
     }
 
+    // @FIXME add OS_ERROR and unit test for this case:
+    // "Do not delete a semaphore that has tasks blocked on it"
+    // see: https://www.freertos.org/a00113.html#vSemaphoreDelete
+    // We can not decide clearly if there is a blocked tasks waiting for the semaphore.
+    // At least, if the semaphore was created empty, there may be or not be blocked tasks...
+    // Even if the semaphore was created as non-empty, a zero count does not mean there is
+    // something blocked waiting for more.
+    // sem_count = uxSemaphoreGetCount(impl->xBinSem);
+    // if (sem_count == 0) {
+    //     OS_printf("OS_BinSemDelete() semaphore has blocks.\n");
+    //     return OS_ERROR;
+    // }
+
     vSemaphoreDelete(impl->xBinSem);
+
+    /* Reset the table entry */
+    memset(impl, 0, sizeof(*impl));
 
     return OS_SUCCESS;
 }
@@ -135,10 +174,8 @@ int32 OS_BinSemGetInfo_Impl(const OS_object_token_t *token, OS_bin_sem_prop_t *b
         return OS_INVALID_POINTER;
     }
 
-    // TODO:
+    // Other properties are filled by base/shared implementation.
     bin_prop->value = uxSemaphoreGetCount(impl->xBinSem);
-    // bin_prop->creator = ??
-    // bin_prop->name = NULL;
 
     return OS_SUCCESS ;
 }

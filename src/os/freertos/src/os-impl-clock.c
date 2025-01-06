@@ -73,17 +73,45 @@
 
 int32 OS_GetLocalTime_Impl(OS_time_t *time_struct)
 {
-    /*
-    ** Not implemented yet
-    */
-    return OS_ERR_NOT_IMPLEMENTED;    
+
+
+    /* @TODO use uniformly the clocks
+     * - Some clocks use HLP_*() functions, usually fed by FreeRTOS timer callback
+     * - Some clocks use xTaskGetTickCount() directly
+     * - Some boards may support hardware RTC, which, differently from FreeRTOS tick, 
+     *   increase while interrupts disabled.
+     *
+     */
+    /* ATTENTION: We are using FreeRTOS tick count as wall clock, 
+     * but it is not strictly correct because it does not increment
+     * inside critical sections.
+     */
+    TickType_t current_ticks;
+    int64 current_microsecs;
+    OS_time_t current_time;
+
+    current_ticks = xTaskGetTickCount();
+    current_ticks -= FreeRTOS_GlobalVars.localtime_epoch_freertos;
+
+    current_microsecs = ( current_ticks * ((int64)1000*1000 )) / configTICK_RATE_HZ;
+
+    current_time = OS_TimeFromTotalMicroseconds(current_microsecs);
+
+    *time_struct = OS_TimeAdd(current_time, FreeRTOS_GlobalVars.localtime_epoch_osal);
+
+    return OS_SUCCESS;
 }
 
 
 int32 OS_SetLocalTime_Impl(const OS_time_t *time_struct)
 {
-    /*
-    ** Not implemented yet
-    */
-    return OS_ERR_NOT_IMPLEMENTED;    
+
+    /* ATTENTION: We are using FreeRTOS tick count as wall clock, 
+     * but it is not strictly correct because it does not increment
+     * inside critical sections.
+     */
+    FreeRTOS_GlobalVars.localtime_epoch_freertos = xTaskGetTickCount();
+    FreeRTOS_GlobalVars.localtime_epoch_osal = *time_struct;
+
+    return OS_SUCCESS;
 }
