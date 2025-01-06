@@ -11,6 +11,10 @@ set(FREERTOS_BASE_SOURCES
     src/os-impl-task.c
     src/os-impl-timebase.c
     src/os-impl-errors.c
+    src/os-impl-dirs.c
+    src/os-impl-file.c
+    src/os-impl-filesys.c
+    src/os-impl-clock.c
 )
 
 #if(NOT DEFINED CUSTOM_FREERTOS_FILESYSTEM)
@@ -18,14 +22,10 @@ set(FREERTOS_BASE_SOURCES
 #endif()
 
 set(FREERTOS_TODO_SOURCES
-    todo/os-impl-dirs.c
-    todo/os-impl-file.c
-    todo/os-impl-filesys.c
     todo/os-impl-module.c
     todo/os-impl-network.c
     todo/os-impl-heap.c
     todo/os-impl-sockets.c
-    todo/os-impl-clock.c
 )
 
 # From portable/README.txt:

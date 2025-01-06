@@ -248,7 +248,7 @@ void vApplicationGetTimerTaskMemory( StaticTask_t ** ppxTimerTaskTCBBuffer,
 
 TickType_t g_last_files_report_ticks = 0;
 
-#define OS_CONSOLE_TASK_REPORT_FILES_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 3)
+#define OS_CONSOLE_TASK_REPORT_FILES_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 30)
 
 struct
 {
@@ -436,7 +436,7 @@ TickType_t g_last_tasks_report_ticks = 0;
 #define TASK_STATUS_ARRAY_SIZE (OS_MAX_TASKS+10) // Give room for some non-osal pure FreeRTOS tasks, like idle and timer
 
 TaskStatus_t g_task_status_array[TASK_STATUS_ARRAY_SIZE];
-#define OS_CONSOLE_TASK_REPORT_TASKS_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 10)
+#define OS_CONSOLE_TASK_REPORT_TASKS_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 30)
 
 // NASA cFS says: It is always a good idea to verify that no more 
 // than 1/2 of the stack is used.
