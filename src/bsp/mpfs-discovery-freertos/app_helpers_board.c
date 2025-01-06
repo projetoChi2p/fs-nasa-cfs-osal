@@ -252,6 +252,8 @@ int __io_putchar(int ch) {
     uint8_t u8 = ch;
 
     MSS_UART_polled_tx(&g_mss_uart4_lo, &u8, 1);
+    
+    return ch;
 }
 
 
