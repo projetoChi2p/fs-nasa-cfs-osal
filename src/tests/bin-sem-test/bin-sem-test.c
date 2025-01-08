@@ -23,7 +23,8 @@
 #include "utassert.h"
 #include "uttest.h"
 
-#define TASK_STACK_SIZE 1024
+/* Stack requirement increased from 1 KiB to 2 KiB to support 64-bit RISC-V CPU. */
+#define TASK_STACK_SIZE 2048 
 
 uint32 task_counter[3];
 
