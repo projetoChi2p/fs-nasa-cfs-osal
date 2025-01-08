@@ -1208,6 +1208,7 @@ int32 OS_FileRemove_Impl(const char *local_path)
     uint8 fstype;
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     int device;
+    int mfs_result;
     #endif
 
     return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
@@ -1233,7 +1234,6 @@ int32 OS_FileRemove_Impl(const char *local_path)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                int mfs_result;
                 // MFS uses path relative to device root
                 mfs_result = mfs_delete_file(device, device_path);
                 if ( mfs_result != MFS_SUCCESS )
@@ -1286,6 +1286,7 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
     uint8 fstype;
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     int device;
+    int mfs_result;
     #endif
 
     /* First translate old name */
@@ -1328,7 +1329,6 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                int mfs_result;
                 // MFS uses path relative to device root
 
                 mfs_result = mfs_rename_file(device, device_path_old, device_path_new);

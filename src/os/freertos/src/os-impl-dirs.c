@@ -460,6 +460,7 @@ int32 OS_DirRemove_Impl(const char *local_path)
     uint8_t fstype;
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     int device;
+    int mfs_result;
     #endif
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
@@ -489,7 +490,6 @@ int32 OS_DirRemove_Impl(const char *local_path)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                int mfs_result;
                 // MFS uses path relative to device root
                 mfs_result = mfs_delete_dir(device, device_path);
                 if ( mfs_result == MFS_ERROR_FAILED )
