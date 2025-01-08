@@ -209,26 +209,9 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             impl->fd = mfs_file_open(impl->device, device_path, mode);
             if ( impl->fd < 0)
             {
-                OS_DEBUG("l:%s,p:%s\n", local_path, device_path);
-                OS_DEBUG("m:%d,f:%d,a:%d\n", mode, flags, access);
-                OS_DEBUG("dev:%s,fd:%s\n", impl->device, impl->fd);
                 return OS_ERROR;
             }
-            if ( (access != OS_READ_ONLY) && (flags & OS_FILE_FLAG_TRUNCATE) == 0 )
-            {
-                mfs_file_lseek(impl->device, impl->fd, 0, MFS_SEEK_END);
-            }
 
-            //translate access privileges to MFS_MODE_READ/MFS_MODE_WRITE/MFS_MODE_CREATE
-            //determine device from path
-            //keep device on impl
-            //remove device prefix from dir path
-            //open file on device
-            //keep fd on impl
-            //OS_DEBUG("OS_FileOpen_Impl(%s,%s,%x,%x,%x): fd %d\n", local_path, device_path, flags, access, mode, impl->fd);
-            //OS_DebugPrintf(1, __func__, __LINE__, "local_path %s device_path %s\n", local_path, device_path);
-
-            // OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
             return OS_SUCCESS;
         #else
             char os_perm_sz[5];
@@ -324,16 +307,10 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
         if (impl->fstype == OS_FILESYS_TYPE_VOLATILE_DISK)
         {
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                int result = mfs_file_read(impl->device, impl->fd, buffer, nbytes);
-                if ( result == MFS_SUCCESS )
-                {
-                    return nbytes;
-                }
-                else
-                {
-                    OS_DEBUG("%d->%d\n", nbytes, result);
-                    return OS_ERR_FILE;
-                }
+                // OSAL API expects 0 if at end of file/stream data, negative if error
+                // MFS does not distinguish between error or end of file, hence we always return success
+                int nread = mfs_file_read(impl->device, impl->fd, buffer, nbytes);
+                return (int32)nread;
             #else
                 size_t result = ff_fread(buffer, 1, nbytes, impl->pxFile);
                 if ( stdioGET_ERRNO( ) != pdFREERTOS_ERRNO_NONE ) 
@@ -424,8 +401,6 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
 int32 OS_GenericClose_Impl(const OS_object_token_t *token)
 {
     OS_impl_file_internal_record_t *impl;
-    osal_status_t status;
-    int result;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -438,6 +413,7 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
                 OS_DEBUG("close failed. ignore. continue.\n");
             }
         #else
+            int result;
             result = ff_fclose(impl->pxFile);
             if (result < 0)
             {
@@ -473,7 +449,48 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 whence)
 {
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
-    return OS_ERR_NOT_IMPLEMENTED;
+    OS_impl_file_internal_record_t* impl;
 
+    impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
+
+    if (impl->fstype == OS_FILESYS_TYPE_VOLATILE_DISK)
+    {
+        #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+            long mfs_tell;
+
+            // OSAL API expects file position (non-negative) on success, or relevant error code (negative)
+            switch (whence)
+            {
+                case OS_SEEK_SET:
+                    mfs_tell = mfs_file_lseek(impl->device, impl->fd, offset, MFS_SEEK_SET);
+                    break;
+                case OS_SEEK_CUR:
+                    mfs_tell = mfs_file_lseek(impl->device, impl->fd, offset, MFS_SEEK_CUR);
+                    break;
+                case OS_SEEK_END:
+                    mfs_tell = mfs_file_lseek(impl->device, impl->fd, offset, MFS_SEEK_END);
+                    break;
+                default:
+                    return OS_ERROR;
+            }
+            // MFS fails with seek == file size, but it could be valid...
+            if (mfs_tell < 0)
+            {
+                return OS_ERR_FILE;
+            }
+            return mfs_tell;
+
+        #else
+            OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+            return OS_ERR_NOT_IMPLEMENTED;
+        #endif
+
+    }
+    else
+    {
+        OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+        return OS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return OS_ERR_FILE;
 } /* end OS_GenericSeek_Impl */

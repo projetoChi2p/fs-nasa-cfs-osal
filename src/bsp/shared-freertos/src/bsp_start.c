@@ -50,6 +50,86 @@ void PSP_CFE_Task(void *pvParameters)
 // @TODO FBV 2024-01-05 use PSP_Console_Init() prototype from header
 int32 PSP_Console_Init(void);
 
+osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority)
+{
+    // TODO: finish this implementation
+    osal_priority_t osal_priority;
+
+
+    //osal highest priority is zero
+    //osal lowest priority is OS_MAX_TASK_PRIORITY
+    //freertos highest is configMAX_PRIORITIES
+    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
+
+    /**
+     * OSAL priorities are in reverse order, and range
+     * from 0 (highest; will preempt all other tasks) to
+     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
+    */
+
+    if (priority < 0) {
+        priority = 0;
+    }
+    else if (priority > configMAX_PRIORITIES)
+    {
+        priority = configMAX_PRIORITIES;
+    }
+
+    osal_priority = OS_MAX_TASK_PRIORITY - (priority * (OS_MAX_TASK_PRIORITY / configMAX_PRIORITIES));
+
+    return osal_priority;
+}
+
+
+UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority) 
+{
+    UBaseType_t uxPriority;
+    //osal highest priority is zero
+    //osal lowest priority is OS_MAX_TASK_PRIORITY
+    //freertos highest is configMAX_PRIORITIES
+    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
+
+    /**
+     * OSAL priorities are in reverse order, and range
+     * from 0 (highest; will preempt all other tasks) to
+     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
+     */
+
+    if (priority < 0)
+    {
+        priority = 0;
+    }
+    else if (priority > OS_MAX_TASK_PRIORITY) 
+    {
+        priority = OS_MAX_TASK_PRIORITY;
+    }
+
+    /* Map priority in range */
+    uxPriority = ( (priority*configMAX_PRIORITIES) + OS_MAX_TASK_PRIORITY -1 ) / OS_MAX_TASK_PRIORITY;
+    if (uxPriority < 0)
+    {
+        uxPriority = 0;
+    }
+    else if (uxPriority > configMAX_PRIORITIES) {
+        uxPriority = configMAX_PRIORITIES;
+    }
+
+    /* Reverse order 
+     * OSAL highest numeric value is lowest priority
+     * FreeRTOS highest numeric value is highest priority
+     */
+    uxPriority = configMAX_PRIORITIES - uxPriority;
+    if (uxPriority < 0)
+    {
+        uxPriority = 0;
+    }
+    else if (uxPriority > configMAX_PRIORITIES) {
+        uxPriority = configMAX_PRIORITIES;
+    }
+
+    return uxPriority;
+}
+
 
 int main(void){
 

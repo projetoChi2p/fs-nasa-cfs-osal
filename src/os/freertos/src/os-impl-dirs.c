@@ -111,7 +111,7 @@ int32 OS_FreeRTOS_DirAPI_Impl_Init(void)
 
     osal_index_t local_id;
 
-    for (local_id = 0; local_id < OS_MAX_NUM_OPEN_FILES; ++local_id)
+    for (local_id = 0; local_id < OS_MAX_NUM_OPEN_DIRS; ++local_id)
     {
         #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
             OS_impl_dir_table[local_id].device = -1;
@@ -152,8 +152,7 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
     return_code = OS_FileStat_Impl(local_path, &FileStats);
     if  ( return_code != OS_SUCCESS )
     {
-        OS_DEBUG("Failed to stat path.\n");
-        return return_code;
+        return OS_ERROR;
     }
     if ( !OS_FILESTAT_ISDIR(FileStats) )
     {
@@ -371,9 +370,75 @@ int32 OS_DirRewind_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
 {
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
+    OS_object_token_t filesys_token;
+    OS_filesys_internal_record_t  *filesys;
+    OS_impl_filesys_internal_record_t *filesys_impl;
+    osal_status_t return_code;
+    uint8_t fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    int device;
+    #endif
 
-    return OS_ERR_NOT_IMPLEMENTED;
+    char device_path [OS_MAX_LOCAL_PATH_LEN];
+
+    OS_CHECK_STRING(local_path, sizeof(device_path), OS_FS_ERR_PATH_TOO_LONG);
+    OS_CHECK_PATHNAME(local_path);
+
+    return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
+    if (return_code != OS_SUCCESS)
+    {
+        return return_code;
+    }
+
+    filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, filesys_token);
+    filesys_impl = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, filesys_token);
+
+    fstype = filesys->fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    device = filesys_impl->device;
+    #endif
+    OS_ObjectIdRelease(&filesys_token);
+
+    /*
+     * Take action based on the type of volume
+     */
+    switch(fstype)
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                if (access == OS_READ_ONLY)
+                {
+                    OS_DEBUG("Warning: R/O access ignored. A R/W directory will be created.\n");
+                }
+                if (access == OS_WRITE_ONLY)
+                {
+                    OS_DEBUG("Warning: W/O access ignored. A R/W directory will be created.\n");
+                }
+
+                int mfs_result;
+                // MFS uses path relative to device root
+                mfs_result = mfs_create_dir(device, device_path);
+                if ( mfs_result == MFS_ERROR_FAILED )
+                {
+                    OS_DEBUG("Failed mfs_create_dir(). Result %d.\n", mfs_result);
+                    return_code = OS_ERROR;
+                    break;
+                }
+                return_code = OS_SUCCESS;
+                break;
+            #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+            #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+            return_code = OS_SUCCESS;
+            break;
+        default:
+            OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return return_code;
+
 } /* end OS_DirCreate_Impl */
 
 
@@ -388,7 +453,62 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
  *-----------------------------------------------------------------*/
 int32 OS_DirRemove_Impl(const char *local_path)
 {
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
+    OS_object_token_t filesys_token;
+    OS_filesys_internal_record_t  *filesys;
+    OS_impl_filesys_internal_record_t *filesys_impl;
+    osal_status_t return_code;
+    uint8_t fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    int device;
+    #endif
 
-    return OS_ERR_NOT_IMPLEMENTED;
+    char device_path [OS_MAX_LOCAL_PATH_LEN];
+
+    OS_CHECK_STRING(local_path, sizeof(device_path), OS_FS_ERR_PATH_TOO_LONG);
+    OS_CHECK_PATHNAME(local_path);
+
+    return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
+    if (return_code != OS_SUCCESS)
+    {
+        return return_code;
+    }
+
+    filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, filesys_token);
+    filesys_impl = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, filesys_token);
+
+    fstype = filesys->fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    device = filesys_impl->device;
+    #endif
+    OS_ObjectIdRelease(&filesys_token);
+
+    /*
+     * Take action based on the type of volume
+     */
+    switch(fstype)
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                int mfs_result;
+                // MFS uses path relative to device root
+                mfs_result = mfs_delete_dir(device, device_path);
+                if ( mfs_result == MFS_ERROR_FAILED )
+                {
+                    return_code = OS_ERROR;
+                    break;
+                }
+                return_code = OS_SUCCESS;
+                break;
+            #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+            #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+            return_code = OS_SUCCESS;
+            break;
+        default:
+            OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return return_code;
 } /* end OS_DirRemove_Impl */

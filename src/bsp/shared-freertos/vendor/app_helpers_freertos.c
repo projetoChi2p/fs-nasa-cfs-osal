@@ -54,13 +54,12 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
     function is called if a stack overflow is detected. */
 	/* The stack space has been execeeded for a task, considering allocating more. */
 
-    unsigned long ul;
-    osal_id_t task_id;
-    OS_task_prop_t task_prop;
+    
+    
     int length;
     int i;
     int isnumber;
-    int osal_result;
+    
 
     length = strlen (pcTaskName);
     isnumber = 1;
@@ -75,17 +74,26 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
     char *osal_name;
     if (isnumber)
     {
-        ul = atol(pcTaskName);
-        task_id = OS_ObjectIdFromInteger(ul);
-        osal_result = OS_TaskGetInfo(task_id, &task_prop);
-        if (osal_result == OS_SUCCESS)
-        {
-            osal_name = task_prop.name;
-        }
-        else
-        {
+        #ifndef OS_USE_TASK_NAME
             osal_name = "unknown";
-        }
+        #else /* ! OS_USE_TASK_NAME */
+            unsigned long ul;
+            osal_id_t task_id;
+            OS_task_prop_t task_prop;
+            int osal_result;
+            
+            ul = atol(pcTaskName);
+            task_id = OS_ObjectIdFromInteger(ul);
+            osal_result = OS_TaskGetInfo(task_id, &task_prop);
+            if (osal_result == OS_SUCCESS)
+            {
+                osal_name = task_prop.name;
+            }
+            else
+            {
+                osal_name = "unknown";
+            }
+        #endif /* ! OS_USE_TASK_NAME */
     }
     else
     {

@@ -114,17 +114,25 @@ int32 OS_FreeRTOS_FileSysAPI_Impl_Init(void)
 
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
         //Check consistency between OSAL and Xilinx MFS limits
-        if ( (MFS_MAX_FILENAME_LENGTH < OS_MAX_FILE_NAME) ||
-             (MFS_MAX_OPEN_FILES < (OS_MAX_NUM_OPEN_FILES+OS_MAX_NUM_OPEN_DIRS)) ||
-             (MFS_MAX_FILESYSTEM < OS_MAX_FILE_SYSTEMS) )
+        if ( MFS_MAX_FILENAME_LENGTH < OS_MAX_FILE_NAME)
         {
-            OS_DEBUG("MFS_MAX_FILENAME_LENGTH %d\n", MFS_MAX_FILENAME_LENGTH);
-            OS_DEBUG("OS_MAX_FILE_NAME %d\n", OS_MAX_FILE_NAME);
-            OS_DEBUG("MFS_MAX_OPEN_FILES %d\n", MFS_MAX_OPEN_FILES);
-            OS_DEBUG("OS_MAX_NUM_OPEN_DIRS %d\n", OS_MAX_NUM_OPEN_DIRS);
-            OS_DEBUG("OS_MAX_NUM_OPEN_FILES %d\n", OS_MAX_NUM_OPEN_FILES);
-            OS_DEBUG("MFS_MAX_FILESYSTEM %d\n", MFS_MAX_FILESYSTEM);
-            OS_DEBUG("OS_MAX_FILE_SYSTEMS %d\n", OS_MAX_FILE_SYSTEMS);
+            OS_DEBUG("Bad configuration: MFS_MAX_FILENAME_LENGTH %d < OS_MAX_FILE_NAME %d\n",
+            MFS_MAX_FILENAME_LENGTH, OS_MAX_FILE_NAME);
+            return OS_ERR_INVALID_SIZE;
+        }
+
+        if ( MFS_MAX_FILESYSTEM < OS_MAX_FILE_SYSTEMS)
+        {
+            OS_DEBUG("Bad configuration: MFS_MAX_FILESYSTEM %d < OS_MAX_FILE_SYSTEMS %d\n",
+            MFS_MAX_FILESYSTEM, OS_MAX_FILE_SYSTEMS);
+            return OS_ERR_INVALID_SIZE;
+        }
+
+        //Check consistency between OSAL and Xilinx MFS limits
+        if (MFS_MAX_OPEN_FILES < (OS_MAX_NUM_OPEN_FILES+OS_MAX_NUM_OPEN_DIRS))
+        {
+            OS_DEBUG("Bad configuration: MFS_MAX_OPEN_FILES %d < OS_MAX_NUM_OPEN_FILES %d + OS_MAX_NUM_OPEN_DIRS %d\n",
+            MFS_MAX_OPEN_FILES, OS_MAX_NUM_OPEN_FILES, OS_MAX_NUM_OPEN_DIRS);
             return OS_ERR_INVALID_SIZE;
         }
 
@@ -1000,7 +1008,6 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
                 }
                 else
                 {
-                    OS_DEBUG("Failed mfs_get_file_size() for '%s' a.k.a device %d '%s'.\n", local_path, device, device_path );
                     // not found or error
                     return_code = OS_ERR_FILE;
                     break;
@@ -1096,6 +1103,80 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
 
 /*----------------------------------------------------------------
  *
+ * Function: OS_FileRemove_Impl
+ *
+ *  Purpose: Implemented per internal OSAL API
+ *           See prototype for argument/return detail
+ *
+ *-----------------------------------------------------------------*/
+int32 OS_FileRemove_Impl(const char *local_path)
+{
+    OS_object_token_t filesys_token;
+    OS_filesys_internal_record_t  *filesys;
+    OS_impl_filesys_internal_record_t *filesys_impl;
+    osal_status_t return_code;
+
+    char device_path [OS_MAX_LOCAL_PATH_LEN];
+    uint8 fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    int device;
+    #endif
+
+    return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
+    if (return_code != OS_SUCCESS)
+    {
+        return return_code;
+    }
+
+    filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, filesys_token);
+    filesys_impl = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, filesys_token);
+
+    fstype = filesys->fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    device = filesys_impl->device;
+    #endif
+    OS_ObjectIdRelease(&filesys_token);
+
+
+    /*
+     * Take action based on the type of volume
+     */
+    switch(fstype) 
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                int mfs_result;
+                // MFS uses path relative to device root
+                mfs_result = mfs_delete_file(device, device_path);
+                if ( mfs_result != MFS_SUCCESS )
+                {
+                    OS_DEBUG("Failed mfs_delete_file(). Result %d.\n", mfs_result);
+                    return_code = OS_ERROR;
+                    break;
+                }
+                return_code = OS_SUCCESS;
+                break;
+            #else
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+                break;
+            #endif
+
+            return_code = OS_SUCCESS;
+            break;
+        default:
+            OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return return_code;
+
+} /* end OS_FileRemove_Impl */
+
+
+
+/*----------------------------------------------------------------
+ *
  * Function: OS_FileRename_Impl
  *
  *  Purpose: Implemented per internal OSAL API
@@ -1109,20 +1190,6 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
 
 } /* end OS_FileRename_Impl */
 
-
-/*----------------------------------------------------------------
- *
- * Function: OS_FileRemove_Impl
- *
- *  Purpose: Implemented per internal OSAL API
- *           See prototype for argument/return detail
- *
- *-----------------------------------------------------------------*/
-int32 OS_FileRemove_Impl(const char *local_path)
-{
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
-    return OS_ERR_NOT_IMPLEMENTED;
-} /* end OS_FileRemove_Impl */
 
 
 
