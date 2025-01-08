@@ -348,6 +348,8 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
 int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, size_t nbytes, int32 timeout)
 {
     OS_impl_file_internal_record_t* impl;
+    
+    UNUSED_ARGUMENT(timeout);
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 

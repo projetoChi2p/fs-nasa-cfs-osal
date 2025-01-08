@@ -28,6 +28,8 @@ int32 OS_FreeRTOS_CountSemAPI_Impl_Init(void)
 int32 OS_CountSemCreate_Impl(const OS_object_token_t *token, uint32 sem_initial_value, uint32 options){
     OS_impl_count_sem_internal_record_t *impl;
 
+    UNUSED_ARGUMENT(options);
+
     // verify initial value does not exceed limit
     if(sem_initial_value > MAX_SEM_VALUE){
         return OS_INVALID_SEM_VALUE;

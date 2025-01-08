@@ -329,6 +329,9 @@ void OS_TimeBaseUnlock_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_TimeBaseGetInfo_Impl(const OS_object_token_t *token, OS_timebase_prop_t *timer_prop)
 {
+    UNUSED_ARGUMENT(token);
+    UNUSED_ARGUMENT(timer_prop);
+
     /* no additional information to be filled/overriden into timer_prop
      * see also basic information populated in shared OS_TimeBaseGetInfo()
      */

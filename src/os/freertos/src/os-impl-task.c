@@ -52,6 +52,8 @@ int32 OS_TaskCreate_Impl(const OS_object_token_t *token, uint32 flags)
     OS_task_internal_record_t *task;
     BaseType_t xReturnCode;
 
+    UNUSED_ARGUMENT(flags);
+
     impl = OS_OBJECT_TABLE_GET(OS_impl_task_table, *token);
     task = OS_OBJECT_TABLE_GET(OS_task_table, *token);
 
@@ -149,6 +151,8 @@ int32 OS_TaskDelete_Impl(const OS_object_token_t *token){
  *-----------------------------------------------------------------*/
 int32 OS_TaskDetach_Impl(const OS_object_token_t *token)
 {
+    UNUSED_ARGUMENT(token);
+
     /* No-op on FreeRTOS */
     return OS_SUCCESS;
 }
@@ -261,6 +265,9 @@ int32 OS_TaskGetInfo_Impl(const OS_object_token_t *token, OS_task_prop_t *task_p
    Function: OS_TaskRegister_Impl
  ------------------------------------------------------------------*/
 int32 OS_TaskRegister_Impl(osal_id_t global_task_id){
+    
+    UNUSED_ARGUMENT(global_task_id);
+
     // we already save impl->obj_id in OS_TaskCreate_Impl()
     // @FIXME we could construct a hash table here to
     // look up global_task_id faster in OS_TaskGetId_Impl()
@@ -271,6 +278,10 @@ int32 OS_TaskRegister_Impl(osal_id_t global_task_id){
    Function: OS_TaskIdMatchSystemData_Impl
  ------------------------------------------------------------------*/
 bool OS_TaskIdMatchSystemData_Impl(void *ref, const OS_object_token_t *token, const OS_common_record_t *obj){
+    UNUSED_ARGUMENT(ref);
+    UNUSED_ARGUMENT(token);
+    UNUSED_ARGUMENT(obj);
+
     return OS_ERROR; // @FIXME
 }
 
@@ -278,6 +289,9 @@ bool OS_TaskIdMatchSystemData_Impl(void *ref, const OS_object_token_t *token, co
    Function: OS_TaskValidateSystemData_Impl
  ------------------------------------------------------------------*/
 int32 OS_TaskValidateSystemData_Impl(const void *sysdata, size_t sysdata_size){
+    UNUSED_ARGUMENT(sysdata);
+    UNUSED_ARGUMENT(sysdata_size);
+    
     return OS_ERROR; // @FIXME
 }
 

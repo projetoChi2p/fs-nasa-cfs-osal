@@ -36,6 +36,8 @@ void OS_BSP_ConsoleOutput_Impl(const char *Str, size_t DataLen)
 
 void OS_BSP_ConsoleSetMode_Impl(uint32 ModeBits)
 {
+    UNUSED_ARGUMENT(ModeBits);
+    
     // no-op
 }
 

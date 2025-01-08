@@ -18,6 +18,8 @@ int32 OS_FreeRTOS_MutexAPI_Impl_Init(void)
  ------------------------------------------------------------------*/
 int32 OS_MutSemCreate_Impl(const OS_object_token_t *token, uint32 options){
     OS_impl_mutex_internal_record_t *impl;
+    
+    UNUSED_ARGUMENT(options);
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_mutex_table, *token);
 
@@ -92,5 +94,9 @@ int32 OS_MutSemDelete_Impl(const OS_object_token_t *token){
    Function: OS_MutSemGetInfo_Impl
  ------------------------------------------------------------------*/
 int32 OS_MutSemGetInfo_Impl(const OS_object_token_t *token, OS_mut_sem_prop_t *mut_prop){
+    
+    UNUSED_ARGUMENT(token);
+    UNUSED_ARGUMENT(mut_prop);
+
     return OS_SUCCESS;
 }

@@ -22,6 +22,8 @@ int32 OS_QueueCreate_Impl(const OS_object_token_t *token, uint32 flags)
     OS_impl_queue_internal_record_t *impl;
     OS_queue_internal_record_t *queue;
 
+    UNUSED_ARGUMENT(flags);
+
     impl = OS_OBJECT_TABLE_GET(OS_impl_queue_table, *token);
     queue = OS_OBJECT_TABLE_GET(OS_queue_table, *token);
 
@@ -71,6 +73,8 @@ int32 OS_QueueGet_Impl(const OS_object_token_t *token, void *data, size_t size, 
     int32 status;
     TickType_t ticks_to_wait;
 
+    UNUSED_ARGUMENT(size);
+
     // @FYI: int32 timeout
     //      = -1 (OS_PEND) -- wait indefinitely
     //      =  0 (OS_CHECK) -- immediate (null if empty)
@@ -108,7 +112,7 @@ int32 OS_QueueGet_Impl(const OS_object_token_t *token, void *data, size_t size, 
         return_code = OS_QUEUE_TIMEOUT;
     }
 
-    // is the message the correct size?
+    // @TODO is the message the correct size?
     // @FIXME not implemented
     //OS_DEBUG("WARNING: Indicating xQueueReceive buffer size of queue->max_size (may not be accurate)\n");
     *size_copied = queue->max_size;
@@ -125,6 +129,10 @@ int32 OS_QueuePut_Impl(const OS_object_token_t *token, const void *data, size_t 
 
     OS_impl_queue_internal_record_t *impl;
     // OS_queue_internal_record_t *queue;
+
+    // @TODO is size relevant?
+    UNUSED_ARGUMENT(size);
+    UNUSED_ARGUMENT(flags);
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_queue_table, *token);
     // queue = OS_OBJECT_TABLE_GET(OS_queue_table, *token);
@@ -153,6 +161,8 @@ int32 OS_QueuePut_Impl(const OS_object_token_t *token, const void *data, size_t 
  *-----------------------------------------------------------------*/
 int32 OS_QueueGetInfo_Impl(const OS_object_token_t *token, OS_queue_prop_t *queue_prop)
 {
-    return OS_SUCCESS;
+    UNUSED_ARGUMENT(token);
+    UNUSED_ARGUMENT(queue_prop);
 
+    return OS_SUCCESS;
 } /* end OS_QueueGetInfo_Impl */

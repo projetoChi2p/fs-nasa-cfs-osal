@@ -19,6 +19,8 @@ int32 OS_HeapGetInfo_Impl(OS_heap_prop_t *heap_prop){
      * However, this feature is available only in FreeRTOS 10.3.0 and later.
      */
 
+    UNUSED_ARGUMENT(heap_prop);
+
     /*
     ** Not implemented yet
     */

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include <app_helpers.h>
 #include <os-shared-globaldefs.h>
@@ -38,6 +39,8 @@ void OS_BSP_Shutdown_Impl(void){
 
 void OS_BSP_Main_Task(void *pvParameters)
 {
+    UNUSED_ARGUMENT(pvParameters);
+
     // This task initializes PSP and CFE after Task Scheduler started
     OS_Application_Startup();
     OS_Application_Run();
@@ -56,33 +59,27 @@ void OS_BSP_Main_Task(void *pvParameters)
 UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority) 
 {
     UBaseType_t uxPriority;
-    //osal highest priority is zero
-    //osal lowest priority is OS_MAX_TASK_PRIORITY
-    //freertos highest is configMAX_PRIORITIES
-    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
 
     /**
-     * OSAL priorities are in reverse order, and range
-     * from 0 (highest; will preempt all other tasks) to
+     * OSAL priorities are in reverse order w.r.t. FreeRTOS, and
+     * range from 0 (highest; will preempt all other tasks) to
      * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
+     * - osal priority is unsigned
+     * - osal highest priority is zero
+     * - osal lowest priority is OS_MAX_TASK_PRIORITY
+     * - freertos priority is unsigned
+     * - freertos highest is configMAX_PRIORITIES
+     * - freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
      */
 
-    if (priority < 0)
-    {
-        priority = 0;
-    }
-    else if (priority > OS_MAX_TASK_PRIORITY) 
-    {
-        priority = OS_MAX_TASK_PRIORITY;
-    }
+    assert(sizeof(osal_priority_t)==1);                    /* priority is byte     */
+    assert((osal_priority_t)(0) < (osal_priority_t)(-1));  /* priority is unsigned */
+    assert(OS_MAX_TASK_PRIORITY == (osal_priority_t)(-1)); /* priority is unsigned */
 
     /* Map priority in range */
     uxPriority = ( (priority*configMAX_PRIORITIES) + OS_MAX_TASK_PRIORITY -1 ) / OS_MAX_TASK_PRIORITY;
-    if (uxPriority < 0)
+    if (uxPriority > configMAX_PRIORITIES)
     {
-        uxPriority = 0;
-    }
-    else if (uxPriority > configMAX_PRIORITIES) {
         uxPriority = configMAX_PRIORITIES;
     }
 
@@ -91,50 +88,11 @@ UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
      * FreeRTOS highest numeric value is highest priority
      */
     uxPriority = configMAX_PRIORITIES - uxPriority;
-    if (uxPriority < 0)
-    {
-        uxPriority = 0;
-    }
-    else if (uxPriority > configMAX_PRIORITIES) {
+    if (uxPriority > configMAX_PRIORITIES) {
         uxPriority = configMAX_PRIORITIES;
     }
 
     return uxPriority;
-}
-
-/* This OS_MapFreeRTOSPriority() function is not currently being
- * used. It would fit better inside os-impl-task.c file/module, but
- * it is kept here to be next to its reversal
- * OS_FreeRTOS_MapOsalPriority()
- */
-osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority)
-{
-    // TODO: finish this implementation
-    osal_priority_t osal_priority;
-
-
-    //osal highest priority is zero
-    //osal lowest priority is OS_MAX_TASK_PRIORITY
-    //freertos highest is configMAX_PRIORITIES
-    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
-
-    /**
-     * OSAL priorities are in reverse order, and range
-     * from 0 (highest; will preempt all other tasks) to
-     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
-    */
-
-    if (priority < 0) {
-        priority = 0;
-    }
-    else if (priority > configMAX_PRIORITIES)
-    {
-        priority = configMAX_PRIORITIES;
-    }
-
-    osal_priority = OS_MAX_TASK_PRIORITY - (priority * (OS_MAX_TASK_PRIORITY / configMAX_PRIORITIES));
-
-    return osal_priority;
 }
 
 

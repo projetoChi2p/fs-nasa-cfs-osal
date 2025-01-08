@@ -31,6 +31,8 @@ int32 OS_FreeRTOS_BinSemAPI_Impl_Init(void)
 int32 OS_BinSemCreate_Impl(const OS_object_token_t *token, uint32 sem_initial_value, uint32 options){
     OS_impl_bin_sem_internal_record_t *impl;
 
+    UNUSED_ARGUMENT(options);
+
     // verify initial value does not exceed limit
     if(sem_initial_value > OS_SEM_FULL){
         return OS_INVALID_SEM_VALUE;
@@ -74,6 +76,8 @@ int32 OS_BinSemGive_Impl(const OS_object_token_t *token){
  *-----------------------------------------------------------------*/
 int32 OS_BinSemFlush_Impl(const OS_object_token_t *token)
 {
+
+    UNUSED_ARGUMENT(token);
 
     // See also Qin Ha https://forums.freertos.org/t/semaphore-flush-function/12770/2
     //It would be similar to, in a critical section:

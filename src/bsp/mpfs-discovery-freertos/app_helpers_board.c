@@ -259,32 +259,47 @@ int __io_putchar(int ch) {
 
 int _fstat(int file, struct stat *st)
 {
+    UNUSED_ARGUMENT(file);
+
 	st->st_mode = S_IFCHR;
 	return 0;
 }
 
 int _isatty(int file)
 {
+    UNUSED_ARGUMENT(file);
+
 	return 1;
 }
 
 int _lseek(int file, int ptr, int dir)
 {
+    UNUSED_ARGUMENT(file);
+    UNUSED_ARGUMENT(ptr);
+    UNUSED_ARGUMENT(dir);
+
 	return 0;
 }
 
 int _open(char *path, int flags, ...)
 {
+    UNUSED_ARGUMENT(path);
+    UNUSED_ARGUMENT(flags);
+
 	return -1;
 }
 
 int _close(int file)
 {
+    UNUSED_ARGUMENT(file);
+
 	return -1;
 }
 
 __attribute__((weak)) int _read(int file, char *ptr, int len)
 {
+    UNUSED_ARGUMENT(file);
+
 	for (int i  = 0; i < len; i++)
 	{
 		*ptr++ = __io_getchar();
@@ -295,6 +310,7 @@ __attribute__((weak)) int _read(int file, char *ptr, int len)
 
 __attribute__((weak)) int _write(int file, char *ptr, int len)
 {
+    UNUSED_ARGUMENT(file);
 
 	for (int i = 0; i < len; i++)
 	{
@@ -312,6 +328,9 @@ int _getpid(void)
 
 int _kill(int pid, int sig)
 {
+    UNUSED_ARGUMENT(pid);
+    UNUSED_ARGUMENT(sig);
+
 	errno = EINVAL;
 	return -1;
 }

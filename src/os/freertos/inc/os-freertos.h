@@ -40,6 +40,7 @@
 #define MAX_CONSTANT(a,b)  (a > b ? a : b)
 #endif
 
+#define UNUSED_ARGUMENT(x) (void)(x)
 
 /****************************************************************************************
                                     TYPEDEFS
@@ -78,7 +79,6 @@ int32 OS_FreeRTOS_FileSysAPI_Impl_Init(void);
 int32 OS_FreeRTOS_TableMutex_Init(osal_objtype_t idtype);
 
 UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority);
-osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority);
 
 /*-------------------------------------------------------------------------------------*/
 /**

@@ -26,7 +26,7 @@ static void vPrintNumber(
     uint8_t outbuf[16];
     const uint8_t digits[] = "0123456789ABCDEF";
     uint32_t num;
-    for (i = 0; i < sizeof(outbuf); i++) {
+    for (i = 0; i < (int)sizeof(outbuf); i++) {
         outbuf[i] = '0';
     }
 

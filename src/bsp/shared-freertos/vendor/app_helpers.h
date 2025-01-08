@@ -79,7 +79,7 @@
 #define HLP_BUILD_FLAGS ((HLP_BUILD_MAY_INLINE << 4)+HLP_BUILD_OPTIMIZE)
 
 
-
+#define UNUSED_ARGUMENT(x) (void)(x)
 
 
 void HLP_vSystemConfig(void);

@@ -409,6 +409,9 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_FileSysCheckVolume_Impl(const OS_object_token_t *token, bool repair)
 {
+    UNUSED_ARGUMENT(token);
+    UNUSED_ARGUMENT(repair);
+
     OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
     return OS_ERR_NOT_IMPLEMENTED;
 } /* end OS_FileSysCheckVolume_Impl */
@@ -920,6 +923,8 @@ static bool findMountPoint(void *ref, const OS_object_token_t *token, const OS_c
     const char *                  target = (const char *)ref;
     size_t                        mplen;
 
+    UNUSED_ARGUMENT(obj);
+
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
 
     if ((filesys->flags & OS_FILESYS_FLAG_IS_MOUNTED_VIRTUAL) == 0)
@@ -1369,6 +1374,9 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
  *-----------------------------------------------------------------*/
 int32 OS_FileChmod_Impl(const char *local_path, uint32 access)
 {
+    UNUSED_ARGUMENT(local_path);
+    UNUSED_ARGUMENT(access);
+
     OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
     return OS_ERR_NOT_IMPLEMENTED;
 

@@ -26,7 +26,6 @@
 #define EXCP_M "M"
 #define EXCP_O "O"
 
-
 /* We are using the FreeRTOS tick as a "high resolution" time base
  * supporting CFE_PSP_Get_Timebase() and CFE_PSP_GetTime(), which in
  * turn supports performance and benchmark metrics, while the OSAL
@@ -60,6 +59,9 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
     int i;
     int isnumber;
     
+    #ifndef OS_ASSERT_USE_TASK_NAME
+    UNUSED_ARGUMENT(xTask);
+    #endif /* OS_ASSERT_USE_TASK_NAME */
 
     length = strlen (pcTaskName);
     isnumber = 1;
@@ -74,9 +76,9 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
     char *osal_name;
     if (isnumber)
     {
-        #ifndef OS_USE_TASK_NAME
+        #ifndef OS_ASSERT_USE_TASK_NAME
             osal_name = "unknown";
-        #else /* ! OS_USE_TASK_NAME */
+        #else /* ! OS_ASSERT_USE_TASK_NAME */
             unsigned long ul;
             osal_id_t task_id;
             OS_task_prop_t task_prop;
@@ -93,14 +95,14 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
             {
                 osal_name = "unknown";
             }
-        #endif /* ! OS_USE_TASK_NAME */
+        #endif /* ! OS_ASSERT_USE_TASK_NAME */
     }
     else
     {
         osal_name = "not OSAL";
     }
 
-    HLP_vConsolePrintFormattedBaremetal("Stack overflow on %s/%s.\n", pcTaskName, osal_name);
+    HLP_vConsolePrintFormattedBaremetal("\nStack overflow on %s/%s.\n", pcTaskName, osal_name);
     vAssertCalled( __FILE__, __LINE__ );
 }
 
@@ -318,7 +320,7 @@ void HLP_ReportFilesEntries(const char* pszPath, uint8 level)
                 else
                 {
                     printf("f ");
-                    printf("%s (%d B)\n", OS_DIRENTRY_NAME(DirEntry), FileStat.FileSize);
+                    printf("%s (%lu B)\n", OS_DIRENTRY_NAME(DirEntry), (unsigned long)FileStat.FileSize);
                 }
             }
         }
@@ -500,7 +502,7 @@ void HLP_ReportTasksIfOnTime(void)
         OS_printf("--- -------------------- -------------------- - --- ------ ------ -----------\r\n");
 
         /* Create a human readable table from the binary data. */
-        for( int x = 0; x < u32NumberOfTasks; x++ )
+        for( unsigned int x = 0; x < u32NumberOfTasks; x++ )
         {
             ul = 0;
             stack_size_bytes = 0;
