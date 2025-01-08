@@ -18,7 +18,7 @@
 typedef struct
 {
     SemaphoreHandle_t AccessMutex;
-    TaskHandle_t cfe_psp_task_handle;
+    TaskHandle_t bsp_main_task_handle;
     TaskHandle_t console_task_handle;
     TaskHandle_t timebase_task_handle;
 } OS_BSP_GenericFreeRtosGlobalData_t;

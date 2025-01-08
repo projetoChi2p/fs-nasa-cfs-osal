@@ -232,7 +232,6 @@ osal_id_t OS_TaskGetId_Impl(void){
  ------------------------------------------------------------------*/
 int32 OS_TaskGetInfo_Impl(const OS_object_token_t *token, OS_task_prop_t *task_prop){
     OS_impl_task_internal_record_t *impl;
-    TaskStatus_t xTaskDetails;
 
     /*
      * The task_prop comes partially filled from common OSAL.

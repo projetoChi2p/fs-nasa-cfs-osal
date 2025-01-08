@@ -185,6 +185,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
     impl  = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
 
+
     // From OS_FileSysAddFixedMap(), comes with
     // filesys->fstype = OS_FILESYS_TYPE_FS_BASED;
     // filesys->flags  = OS_FILESYS_FLAG_IS_FIXED;
@@ -217,6 +218,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
                     return_code = OS_ERR_INVALID_SIZE;
                     break;
                 }
+                impl->device = -1;
             #else /* OS_FILESYSTEM_RAMDISK_IS_XILMFS */
                 if ( filesys->blocksize != FREERTOS_FAT_SECTOR_SIZE ) 
                 {
@@ -283,7 +285,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
             filesys->system_mountpt[0] = '/';
             strncpy(&filesys->system_mountpt[1], filesys->volume_name, sizeof(filesys->system_mountpt) - 2);
             filesys->system_mountpt[sizeof(filesys->system_mountpt) - 1] = 0;
-            OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name);
+            // OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name);
         }
     }
 
@@ -319,6 +321,26 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
     switch(filesys->fstype) 
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
+
+            if (filesys->address == NULL)
+            {
+                return_code = OS_INVALID_POINTER;
+                break;
+            }
+
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                if ( impl->device >= 0 )
+                {
+                    OS_DEBUG("File system '%s' still mounted as %d?\n", filesys->system_mountpt, impl->device);
+                    return_code = OS_ERR_FILE;
+                    break;
+                }
+            #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+                break;
+            #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+
             if (impl->fs_alloc_type == OS_FILESYS_ALLOCATION_TYPE_DYNAMIC)
             {
                 if (filesys->address == NULL)
@@ -387,7 +409,7 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_FileSysCheckVolume_Impl(const OS_object_token_t *token, bool repair)
 {
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");    
+    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
     return OS_ERR_NOT_IMPLEMENTED;
 } /* end OS_FileSysCheckVolume_Impl */
 
@@ -403,11 +425,15 @@ int32 OS_FileSysCheckVolume_Impl(const OS_object_token_t *token, bool repair)
 int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
 {
     OS_filesys_internal_record_t*      filesys;
+#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS    
     OS_impl_filesys_internal_record_t* impl;
+#endif
     int32                              return_code;
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
+#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS    
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
+#endif
 
     /*
      * Take action based on the type of volume
@@ -423,19 +449,29 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
             }
 
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                impl->device = mfs_init_fs(
+                int mfs_result;
+                mfs_result = mfs_init_fs(
                     filesys->numblocks * filesys->blocksize, // number of bytes allocated or reserved for this file system
                     filesys->address,                        // starting address of the memory block
                     MFSINIT_NEW                              // creating empty read/write filesystem
                 );
 
-                if (impl->device < 0)
+                if (mfs_result < 0)
                 {
-                    OS_DEBUG("mfs_init_fs() failed.\n");
-                    return_code = OS_INVALID_POINTER;
+                    OS_DEBUG("mfs_init_fs(%s) failed: %d.\n", filesys->system_mountpt, mfs_result);
+                    return_code = OS_ERR_FILE;
                     break;
                 }
 
+                /* For now, we are only formatting... */
+                mfs_result = mfs_fs_close(mfs_result);
+                if (mfs_result < 0)
+                {
+                    OS_DEBUG("mfs_fs_close(%s) failed: %d.\n", filesys->system_mountpt, mfs_result);
+                    return_code = OS_ERR_FILE;
+                    break;
+                }
+                
                 return_code = OS_SUCCESS;
                 break;
 
@@ -561,22 +597,31 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
             }
 
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                /* No action */
+                impl->device = mfs_init_fs(
+                    filesys->numblocks * filesys->blocksize, // number of bytes allocated or reserved for this file system
+                    filesys->address,                        // starting address of the memory block
+                    MFSINIT_IMAGE                            // mounting a pre-formmated read/write filesystem
+                );
+
                 if (impl->device < 0)
                 {
-                    OS_DEBUG("mount(%s) DEVICE NOT READY/FORMATTED\n", filesys->device_name);
-                    return_code = OS_INVALID_POINTER;
+                    OS_DEBUG("mfs_init_fs(%s) failed: %d.\n", filesys->system_mountpt, impl->device);
+                    return_code = OS_ERR_FILE;
                     break;
                 }
+                
+                return_code = OS_SUCCESS;
+                break;
 
             #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
-
-                /* This implementation relies on FreeRTOS FAT stdio features,
+                /* No action: FreeRTOS+FAT FF_RAMDiskInit() left RAM filesystem mounted 
+                 * after formatting.
+                 */
+                /* This implementation relies on FreeRTOS+FAT stdio features,
                  * which keeps registry of filesystem path prefixes (device name or
                  * mount point) and select the respective I/O manager to handle
                  * files and directories.
                  */
-                // FF_RAMDiskInit() already mounted the RAM filesystem.
                 if (impl->allocated_disk == NULL)
                 {
                     OS_DEBUG("mount(%s) DEVICE NOT READY/FORMATTED\n", filesys->device_name);
@@ -631,41 +676,84 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
 int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
 {
     OS_filesys_internal_record_t *     filesys;
-    //OS_impl_filesys_internal_record_t* impl;
+    OS_impl_filesys_internal_record_t* impl;
+    int32                              return_code;
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
-    //impl  = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
+    impl  = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
 
-    OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-        filesys->volume_name, 
-        filesys->device_name, 
-        filesys->system_mountpt, 
-        filesys->virtual_mountpt,
-        filesys->address,
-        (unsigned long)filesys->blocksize,
-        (unsigned long)filesys->numblocks,
-        (unsigned long)filesys->flags,
-        (unsigned long)filesys->fstype,
+    /*
+     * Take action based on the type of volume
+     */
+    switch(filesys->fstype) 
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+            // Sanity check
+            if (filesys->address == NULL)
+            {
+                OS_DEBUG("mount(%s) DEVICE NOT READY/FORMATTED\n", filesys->device_name);
+                return_code = OS_INVALID_POINTER;
+                break;
+            }
 
-        (filesys->fstype==OS_FILESYS_TYPE_VOLATILE_DISK)?"Volatile":"?"
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                int mfs_result;
 
-        // OS_FILESYS_TYPE_UNKNOWN = 0,   /**< Unspecified or unknown file system type */
-        // OS_FILESYS_TYPE_FS_BASED,      /**< An emulated virtual file system that maps to another file system location */
-        // OS_FILESYS_TYPE_NORMAL_DISK,   /**< A traditional disk drive or something that emulates one */
-        // OS_FILESYS_TYPE_VOLATILE_DISK, /**< A temporary/volatile file system or RAM disk */
-        // OS_FILESYS_TYPE_MTD,           /**< A "memory technology device" such as FLASH or EEPROM */
-    );
-    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-        OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
-        return OS_ERR_NOT_IMPLEMENTED;
-    #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+                if (impl->device < 0)
+                {
+                    OS_DEBUG("bad device for '%s': %d.\n", filesys->system_mountpt, impl->device);
+                    return_code = OS_ERR_FILE;
+                    break;
+                }
 
-        OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
-        return OS_ERR_NOT_IMPLEMENTED;
+                mfs_result = mfs_fs_close(impl->device);
+                if (mfs_result < 0)
+                {
+                    OS_DEBUG("mfs_fs_close(%s,%d) failed: %d.\n", filesys->system_mountpt, impl->device, mfs_result);
+                    return_code = OS_ERR_FILE;
+                    break;
+                }
+                impl->device = -1;
+                
+                return_code = OS_SUCCESS;
+                break;
 
-    #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+            #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+                break;
+            #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
 
-    return OS_SUCCESS;
+            return_code = OS_SUCCESS;
+            break;
+
+        default:
+
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
+                filesys->volume_name, 
+                filesys->device_name, 
+                filesys->system_mountpt, 
+                filesys->virtual_mountpt,
+                filesys->address,
+                (unsigned long)filesys->blocksize,
+                (unsigned long)filesys->numblocks,
+                (unsigned long)filesys->flags,
+                (unsigned long)filesys->fstype,
+
+                (filesys->fstype==OS_FILESYS_TYPE_VOLATILE_DISK)?"Volatile":"?"
+
+                // OS_FILESYS_TYPE_UNKNOWN = 0,   /**< Unspecified or unknown file system type */
+                // OS_FILESYS_TYPE_FS_BASED,      /**< An emulated virtual file system that maps to another file system location */
+                // OS_FILESYS_TYPE_NORMAL_DISK,   /**< A traditional disk drive or something that emulates one */
+                // OS_FILESYS_TYPE_VOLATILE_DISK, /**< A temporary/volatile file system or RAM disk */
+                // OS_FILESYS_TYPE_MTD,           /**< A "memory technology device" such as FLASH or EEPROM */
+            );    
+            OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+            break;
+    }
+
+    return return_code;
 } /* end OS_FileSysUnmountVolume_Impl */
 
 
@@ -1009,7 +1097,7 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
                 else
                 {
                     // not found or error
-                    return_code = OS_ERR_FILE;
+                    return_code = OS_ERROR;
                     break;
                 }
 
@@ -1150,7 +1238,6 @@ int32 OS_FileRemove_Impl(const char *local_path)
                 mfs_result = mfs_delete_file(device, device_path);
                 if ( mfs_result != MFS_SUCCESS )
                 {
-                    OS_DEBUG("Failed mfs_delete_file(). Result %d.\n", mfs_result);
                     return_code = OS_ERROR;
                     break;
                 }
@@ -1185,8 +1272,87 @@ int32 OS_FileRemove_Impl(const char *local_path)
  *-----------------------------------------------------------------*/
 int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
 {
-    OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");    
-    return OS_ERR_NOT_IMPLEMENTED;
+
+    OS_object_token_t filesys_token;
+    OS_filesys_internal_record_t  *filesys;
+    OS_impl_filesys_internal_record_t *filesys_impl;
+    osal_status_t return_code;
+
+    unsigned long old_fs_id; // see OS_ObjectIdToInteger()
+    unsigned long new_fs_id; // see OS_ObjectIdToInteger()
+
+    char device_path_old [OS_MAX_LOCAL_PATH_LEN];
+    char device_path_new [OS_MAX_LOCAL_PATH_LEN];
+    uint8 fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    int device;
+    #endif
+
+    /* First translate old name */
+    return_code = OS_FreeRTOS_TranslateLocalPath(old_path, &filesys_token, device_path_old);
+    if (return_code != OS_SUCCESS)
+    {
+        return return_code;
+    }
+
+    old_fs_id = OS_ObjectIdToInteger(OS_ObjectIdFromToken(&filesys_token));
+    filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, filesys_token);
+    filesys_impl = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, filesys_token);
+
+    fstype = filesys->fstype;
+    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+    device = filesys_impl->device;
+    #endif
+    OS_ObjectIdRelease(&filesys_token);
+
+    /* Now translate new name */
+    return_code = OS_FreeRTOS_TranslateLocalPath(new_path, &filesys_token, device_path_new);
+    if (return_code != OS_SUCCESS)
+    {
+        return return_code;
+    }
+
+    new_fs_id = OS_ObjectIdToInteger(OS_ObjectIdFromToken(&filesys_token));
+
+    OS_ObjectIdRelease(&filesys_token);
+
+    if ( old_fs_id != new_fs_id )
+    {
+        return OS_ERROR;
+    }
+
+    /*
+     * Take action based on the type of volume
+     */
+    switch(fstype) 
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                int mfs_result;
+                // MFS uses path relative to device root
+
+                mfs_result = mfs_rename_file(device, device_path_old, device_path_new);
+                if ( mfs_result != MFS_SUCCESS )
+                {
+                    return_code = OS_ERROR;
+                    break;
+                }
+                return_code = OS_SUCCESS;
+                break;
+            #else
+                OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+                return_code = OS_ERR_NOT_IMPLEMENTED;
+                break;
+            #endif
+
+            return_code = OS_SUCCESS;
+            break;
+        default:
+            OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+    }
+
+    return return_code;
 
 } /* end OS_FileRename_Impl */
 

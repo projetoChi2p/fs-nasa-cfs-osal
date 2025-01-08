@@ -528,9 +528,9 @@ void HLP_ReportTasksIfOnTime(void)
                 {
                     stack_size_bytes = configTIMER_TASK_STACK_DEPTH * sizeof(StackType_t);;
                 }
-                else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.cfe_psp_task_handle)
+                else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.bsp_main_task_handle)
                 {
-                    stack_size_bytes = PSP_CFE_TASK_STACK_SIZE_BYTES;
+                    stack_size_bytes = BSP_MAIN_TASK_STACK_SIZE_BYTES;
                 }
                 else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.console_task_handle)
                 {

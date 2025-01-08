@@ -36,7 +36,7 @@ void OS_BSP_Shutdown_Impl(void){
     // No action
 }
 
-void PSP_CFE_Task(void *pvParameters)
+void OS_BSP_Main_Task(void *pvParameters)
 {
     // This task initializes PSP and CFE after Task Scheduler started
     OS_Application_Startup();
@@ -47,40 +47,12 @@ void PSP_CFE_Task(void *pvParameters)
     OS_BSP_Shutdown_Impl();
 }
 
-// @TODO FBV 2024-01-05 use PSP_Console_Init() prototype from header
-int32 PSP_Console_Init(void);
-
-osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority)
-{
-    // TODO: finish this implementation
-    osal_priority_t osal_priority;
-
-
-    //osal highest priority is zero
-    //osal lowest priority is OS_MAX_TASK_PRIORITY
-    //freertos highest is configMAX_PRIORITIES
-    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
-
-    /**
-     * OSAL priorities are in reverse order, and range
-     * from 0 (highest; will preempt all other tasks) to
-     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
-    */
-
-    if (priority < 0) {
-        priority = 0;
-    }
-    else if (priority > configMAX_PRIORITIES)
-    {
-        priority = configMAX_PRIORITIES;
-    }
-
-    osal_priority = OS_MAX_TASK_PRIORITY - (priority * (OS_MAX_TASK_PRIORITY / configMAX_PRIORITIES));
-
-    return osal_priority;
-}
-
-
+/* This OS_FreeRTOS_MapOsalPriority() function would fit better
+ * inside os-impl-task.c, but that file/module is not compiled
+ * in the case of OSAL's coverage tests, failing to satisfy 
+ * linkage for main() below. Consequently, OS_FreeRTOS_MapOsalPriority()
+ * is here in BSP, instead of in OS.
+ */
 UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority) 
 {
     UBaseType_t uxPriority;
@@ -130,8 +102,44 @@ UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
     return uxPriority;
 }
 
+/* This OS_MapFreeRTOSPriority() function is not currently being
+ * used. It would fit better inside os-impl-task.c file/module, but
+ * it is kept here to be next to its reversal
+ * OS_FreeRTOS_MapOsalPriority()
+ */
+osal_priority_t OS_MapFreeRTOSPriority(UBaseType_t priority)
+{
+    // TODO: finish this implementation
+    osal_priority_t osal_priority;
 
-int main(void){
+
+    //osal highest priority is zero
+    //osal lowest priority is OS_MAX_TASK_PRIORITY
+    //freertos highest is configMAX_PRIORITIES
+    //freertos lowest priority is zero (e.g. tskIDLE_PRIORITY)
+
+    /**
+     * OSAL priorities are in reverse order, and range
+     * from 0 (highest; will preempt all other tasks) to
+     * OS_MAX_TASK_PRIORITY (lowest; will not preempt any other task).
+    */
+
+    if (priority < 0) {
+        priority = 0;
+    }
+    else if (priority > configMAX_PRIORITIES)
+    {
+        priority = configMAX_PRIORITIES;
+    }
+
+    osal_priority = OS_MAX_TASK_PRIORITY - (priority * (OS_MAX_TASK_PRIORITY / configMAX_PRIORITIES));
+
+    return osal_priority;
+}
+
+
+int main(void)
+{
 
     BaseType_t xReturnCode;
 
@@ -157,12 +165,12 @@ int main(void){
      * task.
      */
     xReturnCode = xTaskCreate(
-        &PSP_CFE_Task,
-        "PSP_CFE_Task",
-        ( PSP_CFE_TASK_STACK_SIZE_BYTES / sizeof(StackType_t) ),
+        &OS_BSP_Main_Task,
+        "BSP_Main",
+        ( BSP_MAIN_TASK_STACK_SIZE_BYTES / sizeof(StackType_t) ),
         NULL,  // pvParameters
-        OS_FreeRTOS_MapOsalPriority(PSP_CFE_TASK_PRIORITY),
-        &(OS_BSP_GenericFreeRtosGlobal.cfe_psp_task_handle)  // pxCreatedTask handle
+        OS_FreeRTOS_MapOsalPriority(BSP_MAIN_TASK_PRIORITY),
+        &(OS_BSP_GenericFreeRtosGlobal.bsp_main_task_handle)  // pxCreatedTask handle
     );
 
     if (xReturnCode != pdTRUE)

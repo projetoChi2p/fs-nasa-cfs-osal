@@ -144,7 +144,7 @@ void OS_ConsoleWakeup_Impl(const OS_object_token_t *token)
     impl = OS_OBJECT_TABLE_GET(OS_impl_console_table, *token);
     console = OS_OBJECT_TABLE_GET(OS_console_table, *token);
 
-    if (console->IsAsync = true) 
+    if (console->IsAsync == true)
     {
         if (impl->console_sem != NULL)
         {
