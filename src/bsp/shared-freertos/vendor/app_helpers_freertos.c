@@ -438,14 +438,14 @@ void HLP_ReportFilesIfOnTime(void)
 
 #endif /* OS_CONSOLE_TASK_REPORT_FILES */
 
+#define TASK_STATUS_ARRAY_SIZE (OS_MAX_TASKS+10) // Give room for some non-osal pure FreeRTOS tasks, like idle and timer
+TaskStatus_t g_task_status_array[TASK_STATUS_ARRAY_SIZE];
 
 #ifdef OS_CONSOLE_TASK_REPORT_TASKS
 
 TickType_t g_last_tasks_report_ticks = 0;
 
-#define TASK_STATUS_ARRAY_SIZE (OS_MAX_TASKS+10) // Give room for some non-osal pure FreeRTOS tasks, like idle and timer
 
-TaskStatus_t g_task_status_array[TASK_STATUS_ARRAY_SIZE];
 #define OS_CONSOLE_TASK_REPORT_TASKS_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 30)
 
 // NASA cFS says: It is always a good idea to verify that no more 
@@ -603,6 +603,106 @@ void HLP_ReportTasksIfOnTime(void)
 }
 
 #endif /* OS_CONSOLE_TASK_REPORT_TASKS */
+
+#ifdef FREERTOS_TRACE_ENABLED
+
+void HLP_ReportTasksIfComplete(void)
+{
+    uint32_t u32NumberOfTasks;
+    uint32_t ulTotalRunTime;
+    char cStatus;
+    OS_task_prop_t task_prop;
+    unsigned long ul;
+    osal_id_t task_id;
+    int osal_result;
+    unsigned long stack_size_bytes;
+    unsigned long stack_startbyte;
+    unsigned long stack_used_bytes;
+    unsigned long stack_free_bytes;
+    char* task_name;
+    char* stack_level_warning;
+
+    TaskHandle_t idle_task_handle;
+    TaskHandle_t timer_task_handle;
+
+    idle_task_handle = xTaskGetIdleTaskHandle();
+    timer_task_handle = xTimerGetTimerDaemonTaskHandle();
+
+    memset(g_task_status_array, 0, sizeof(g_task_status_array));
+    u32NumberOfTasks = uxTaskGetSystemState( g_task_status_array, TASK_STATUS_ARRAY_SIZE, &ulTotalRunTime );
+
+    //taskENTER_CRITICAL();
+    //printf("--------------------------------------------------------------------------------\n");
+    printf("\n> FreeRTOS Tasks: %lu\n\n", (unsigned long)u32NumberOfTasks);
+    //printf("> Tag     TaskName        Stack base          Stack size\r\n");
+    //printf("--- -------------------- -------------------- - --- ------ ------ -----------\n");
+    printf("%3s %-20s\t%8s\t%6s\n",
+            "Tag",
+            "TaskName",
+            "Stack base",
+            "Stack size"        
+        );
+    /* Create a human readable table from the binary data. */
+    for( unsigned int x = 0; x < u32NumberOfTasks; x++ )
+    {
+        ul = 0;
+        stack_size_bytes = 0;
+        stack_used_bytes = 0;
+        task_name = g_task_status_array[ x ].pcTaskName;
+        
+        stack_level_warning = "";
+        ul = atol(g_task_status_array[ x ].pcTaskName);
+        if (ul!=0) {
+            task_id = OS_ObjectIdFromInteger(ul);
+            osal_result = OS_TaskGetInfo(task_id, &task_prop);
+            if (osal_result == OS_SUCCESS)
+            {
+                task_name = task_prop.name;
+                stack_size_bytes = task_prop.stack_size;
+            }
+        }
+        else
+        {
+            if ( g_task_status_array[ x ].xHandle == idle_task_handle)
+            {
+                stack_size_bytes = FREERTOS_IDLE_TASK_STACK_SIZE_WORDS * sizeof(StackType_t);;
+            }
+            else if ( g_task_status_array[ x ].xHandle == timer_task_handle)
+            {
+                stack_size_bytes = configTIMER_TASK_STACK_DEPTH * sizeof(StackType_t);;
+            }
+            else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.bsp_main_task_handle)
+            {
+                stack_size_bytes = BSP_MAIN_TASK_STACK_SIZE_BYTES;
+            }
+            else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.console_task_handle)
+            {
+                stack_size_bytes = OS_UTILITYTASK_STACK_SIZE;  // assumption timebase uses utility-like stack
+            }
+            else if ( g_task_status_array[ x ].xHandle == OS_BSP_GenericFreeRtosGlobal.timebase_task_handle)
+            {
+                stack_size_bytes = OS_TIMEBASE_TASK_STACK_SIZE;
+            }
+        }
+
+        // FreeRTOS watermark is always free space
+        // The closer to zero may overflow
+        stack_free_bytes = (g_task_status_array[ x ].usStackHighWaterMark * sizeof(StackType_t));
+        stack_startbyte = g_task_status_array[ x ].pxStackBase;
+        vTaskSetApplicationTaskTag(g_task_status_array[ x ].xHandle, (TaskHookFunction_t) (g_task_status_array[ x ].xTaskNumber - 1 + 'A'));
+
+        printf("  %c %-20s\t%x\t%6lu\n",
+            (char) xTaskGetApplicationTaskTag(g_task_status_array[ x ].xHandle),
+            //(unsigned long) g_task_status_array[ x ].xTaskNumber,
+            task_name, 
+            stack_startbyte,
+            stack_size_bytes            
+        );
+    }
+    
+}
+
+#endif /* FREERTOS_TRACE_ENABLED */
 
 // INCLUDE_uxTaskGetStackHighWaterMark
 

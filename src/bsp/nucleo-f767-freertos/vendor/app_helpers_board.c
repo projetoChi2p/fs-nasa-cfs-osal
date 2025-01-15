@@ -448,6 +448,15 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
     HAL_UART_Transmit(g_phStm32UartConsole, (uint8_t *) data, size, HAL_MAX_DELAY);
 }
 
+void HLP_vPrintChar(char c, int8_t out){
+    if (c == 0) return;
+    static volatile char trace_task_tag[3];
+    trace_task_tag[0] = '~';
+    trace_task_tag[1] = c + out;
+    trace_task_tag[2] = '\n';
+    HLP_vConsolePrintBytesBaremetal((uint8_t*)trace_task_tag, 3);
+}
+
 /* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
  * are allocating explicitly to enforce alignment or to put it inside
  * arbitraty memory region.

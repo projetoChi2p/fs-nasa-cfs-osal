@@ -43,6 +43,9 @@ void OS_BSP_Main_Task(void *pvParameters)
 
     // This task initializes PSP and CFE after Task Scheduler started
     OS_Application_Startup();
+    #ifdef FREERTOS_TRACE_ENABLED
+        HLP_ReportTasksIfComplete();
+    #endif
     OS_Application_Run();
 
     BSP_DEBUG("OS_Application_Run() left idle loop.\n");
