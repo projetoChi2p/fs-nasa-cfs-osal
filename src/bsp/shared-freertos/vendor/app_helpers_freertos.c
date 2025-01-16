@@ -45,6 +45,15 @@ StaticSemaphore_t xStdioMutexBuffer;
 #define HLP_CONSOLE_PRINTF_BUFFER_SIZE 256
 char hlp_console_printf_buffer[HLP_CONSOLE_PRINTF_BUFFER_SIZE];
 
+/*
+    Variables for trace analysis.
+*/
+#if (configUSE_TRACE_FACILITY == 1)
+    char trace_task_name_in [16];
+    char trace_task_name_out [16];
+#endif
+
+
 
 void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
 {
