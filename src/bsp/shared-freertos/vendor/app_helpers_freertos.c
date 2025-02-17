@@ -642,10 +642,10 @@ void HLP_ReportTasksIfComplete(void)
 
     //taskENTER_CRITICAL();
     //printf("--------------------------------------------------------------------------------\n");
-    printf("\n> FreeRTOS Tasks: %lu\n\n", (unsigned long)u32NumberOfTasks);
+    printf("^!FreeRTOS Tasks: %lu\n", (unsigned long)u32NumberOfTasks);
     //printf("> Tag     TaskName        Stack base          Stack size\r\n");
     //printf("--- -------------------- -------------------- - --- ------ ------ -----------\n");
-    printf("%3s %-20s\t%8s\t%6s\n",
+    printf("^!%3s;%-20s;%8s;%6s\n",
             "Tag",
             "TaskName",
             "Stack base",
@@ -700,7 +700,7 @@ void HLP_ReportTasksIfComplete(void)
         stack_startbyte = g_task_status_array[ x ].pxStackBase;
         vTaskSetApplicationTaskTag(g_task_status_array[ x ].xHandle, (TaskHookFunction_t) (g_task_status_array[ x ].xTaskNumber - 1 + 'A'));
 
-        printf("  %c %-20s\t%x\t%6lu\n",
+        printf("^%c;%s;%x;%6lu\n",
             (char) xTaskGetApplicationTaskTag(g_task_status_array[ x ].xHandle),
             //(unsigned long) g_task_status_array[ x ].xTaskNumber,
             task_name, 
@@ -708,7 +708,7 @@ void HLP_ReportTasksIfComplete(void)
             stack_size_bytes            
         );
     }
-    
+    printf("^^\n");
 }
 
 #endif /* FREERTOS_TRACE_ENABLED */
