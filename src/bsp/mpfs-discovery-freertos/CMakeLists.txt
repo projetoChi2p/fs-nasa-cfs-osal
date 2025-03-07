@@ -70,6 +70,7 @@ FILE(GLOB VENDOR_CODE
     polarfire_hal/platform/hal/*.S
     polarfire_hal/platform/drivers/mss/mss_mmuart/*.c
     polarfire_hal/platform/drivers/mss/mss_gpio/*.c
+    polarfire_hal/platform/drivers/mss/mss_rtc/*.c
     vector_table.S
     app_helpers_board.c
 )

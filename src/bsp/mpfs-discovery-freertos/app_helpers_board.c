@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
@@ -18,6 +19,7 @@
 #include "mpfs_hal/mss_hal.h"
 #include "drivers/mss/mss_mmuart/mss_uart.h"
 #include "drivers/mss/mss_gpio/mss_gpio.h"
+#include "drivers/mss/mss_rtc/mss_rtc.h"
 
 
 /* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
@@ -96,6 +98,118 @@ static inline void minidelay(uint32_t n)
     }
 }
 
+/*
+    * Redefinition of the "weak" function defined in: 
+    * fs-nasa-cfs-mission-v0/third-party/freertos-v10.5.1-gcc-riscv/portable/GCC/RISC-V/portASM.S".
+    * The only diference it is that now handles external interruptions.
+*/
+void freertos_risc_v_application_interrupt_handler(void) {
+    volatile uintptr_t mcause = read_csr(mcause);
+    if (((mcause & MCAUSE_INT) == MCAUSE_INT) && ((mcause & MCAUSE_CAUSE) == IRQ_M_EXT)) {
+        handle_m_ext_interrupt();
+    }
+    else {
+        __asm volatile("csrr t0, mcause");  /* For viewing in the debugger only */
+        __asm volatile("csrr t1, mepc");    /* For viewing in the debugger only */
+        __asm volatile("csrr t2, mstatus"); /* For viewing in the debugger only */
+        __asm volatile("j .");
+    }
+}
+
+uint8_t rtc_wakeup_plic_IRQHandler(void) {
+    MSS_RTC_clear_irq();
+
+    return EXT_IRQ_DISABLE;
+}
+
+void enable_RTC_isr(uint32_t alarm_value_us) {
+    MSS_RTC_reset_counter();
+
+    MSS_RTC_set_binary_count_alarm(alarm_value_us, MSS_RTC_SINGLE_SHOT_ALARM);
+
+    MSS_RTC_enable_irq();
+
+    MSS_RTC_start();
+}
+
+void setup_RTC_isr() {
+    PLIC_SetPriority(RTC_WAKEUP_PLIC, 2);
+    (void)mss_config_clk_rst(MSS_PERIPH_RTC, MPFS_HAL_LAST_HART, PERIPHERAL_ON);
+
+    // RTCCLK = 1 us
+    SYSREG->RTC_CLOCK_CR &= ~0x00010000U;
+    SYSREG->RTC_CLOCK_CR = LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK / LIBERO_SETTING_MSS_RTC_TOGGLE_CLK;
+    SYSREG->RTC_CLOCK_CR |= 0x00010000U;
+
+    MSS_RTC_init(MSS_RTC_LO_BASE, MSS_RTC_BINARY_MODE, 0);
+
+    MSS_RTC_reset_counter();
+}
+
+/*
+    * The Interruption Sub-Routine that performs the FI.
+*/
+void FI_ISR(mss_uart_instance_t *this_uart)  {
+    uint8_t     rx_buff [14];
+    uint64_t    FI_addr;
+    uint8_t     FI_btf;
+
+    /*
+    [0 .. 7] = Memory Address (ADDR)
+    [8]      = Bit To Flip (BTF), value between 0 and 31.
+    [9]      = \0
+    [10 .. 13] = Not Used
+    */
+
+    MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
+
+    memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
+    memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
+
+    // Cast fi_addr to a pointer and flip the specified bit
+    uint32_t *injection_address = (uint32_t *)FI_addr;
+    *injection_address ^= (1U << FI_btf);
+}
+
+
+/*
+    * Enables Fault Injection Mode, where it is set a 
+    * Interrutption Routine in the UART1 port.
+    * It is expected a 14 byte array containing information
+    * to perform the injection, described as:
+    *   [0 .. 7] = Memory Addres to do the injection
+    *   [8]      = Bit to Flip (BTF), is expected a value between 0 and 31
+    *   [9]         = '\0', string terminator
+    *   [10 .. 13]  = Not Used
+*/
+void setup_FI_ISR() {
+    PLIC_init();
+
+    (void)mss_config_clk_rst(MSS_PERIPH_MMUART1, (uint8_t)MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
+
+    MSS_UART_init( &( g_mss_uart1_lo ), MSS_UART_921600_BAUD
+                , MSS_UART_DATA_8_BITS | MSS_UART_NO_PARITY | MSS_UART_ONE_STOP_BIT );
+
+    MSS_UART_set_rx_handler(&g_mss_uart1_lo, FI_ISR, MSS_UART_FIFO_FOURTEEN_BYTES);
+
+    /* It is required to set a priority for a PLIC interrupt, even if no other
+     * interrupt is used */
+    PLIC_SetPriority(MMUART1_PLIC, 2u);
+    PLIC_SetPriority_Threshold(0u);
+
+    MSS_UART_enable_irq(&g_mss_uart1_lo, MSS_UART_RBF_IRQ);
+}
+
+
+void HLP_vPrintChar(char c, int8_t out) {
+    if (c == 0) return;
+    static volatile char trace_task_tag[3];
+    trace_task_tag[0] = '~';
+    trace_task_tag[1] = c + out;
+    trace_task_tag[2] = '\n';
+    MSS_UART_polled_tx(&g_mss_uart1_lo, (uint8_t*)trace_task_tag, 3);
+}
+
 
 // called from ../osal/src/bsp/generic-freetos/src/bsp_start.c
 void HLP_vSystemConfig(void) 
@@ -139,6 +253,10 @@ void HLP_vSystemConfig(void)
             minidelay(DELAY_CYCLES_100MS);
         }
     }
+
+    #ifdef ENABLE_FI
+        setup_FI_ISR();
+    #endif
 
 
     /**************************************************************
