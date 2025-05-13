@@ -116,35 +116,6 @@ void freertos_risc_v_application_interrupt_handler(void) {
     }
 }
 
-uint8_t rtc_wakeup_plic_IRQHandler(void) {
-    MSS_RTC_clear_irq();
-
-    return EXT_IRQ_DISABLE;
-}
-
-void enable_RTC_isr(uint32_t alarm_value_us) {
-    MSS_RTC_reset_counter();
-
-    MSS_RTC_set_binary_count_alarm(alarm_value_us, MSS_RTC_SINGLE_SHOT_ALARM);
-
-    MSS_RTC_enable_irq();
-
-    MSS_RTC_start();
-}
-
-void setup_RTC_isr() {
-    PLIC_SetPriority(RTC_WAKEUP_PLIC, 2);
-    (void)mss_config_clk_rst(MSS_PERIPH_RTC, MPFS_HAL_LAST_HART, PERIPHERAL_ON);
-
-    // RTCCLK = 1 us
-    SYSREG->RTC_CLOCK_CR &= ~0x00010000U;
-    SYSREG->RTC_CLOCK_CR = LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK / LIBERO_SETTING_MSS_RTC_TOGGLE_CLK;
-    SYSREG->RTC_CLOCK_CR |= 0x00010000U;
-
-    MSS_RTC_init(MSS_RTC_LO_BASE, MSS_RTC_BINARY_MODE, 0);
-
-    MSS_RTC_reset_counter();
-}
 
 /*
     * The Interruption Sub-Routine that performs the FI.
@@ -207,7 +178,7 @@ void HLP_vPrintChar(char c, int8_t out) {
     trace_task_tag[0] = '~';
     trace_task_tag[1] = c + out;
     trace_task_tag[2] = '\n';
-    MSS_UART_polled_tx(&g_mss_uart1_lo, (uint8_t*)trace_task_tag, 3);
+    MSS_UART_polled_tx(&g_mss_uart4_lo, (uint8_t*)trace_task_tag, 3);
 }
 
 
