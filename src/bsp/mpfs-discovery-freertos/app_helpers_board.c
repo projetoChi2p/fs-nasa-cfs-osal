@@ -22,7 +22,7 @@
 #include "drivers/mss/mss_rtc/mss_rtc.h"
 
 
-/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
+/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we
  * are allocating explicitly to enforce alignment or to put it inside
  * arbitraty memory region, e.g. MPFS MSS scratchpad.
  */
@@ -54,7 +54,7 @@ void u54_1(void) {
 
 
 
-void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size ) 
+void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 {
     MSS_UART_polled_tx(&g_mss_uart4_lo, data, size);
 }
@@ -99,7 +99,7 @@ static inline void minidelay(uint32_t n)
 }
 
 /*
-    * Redefinition of the "weak" function defined in: 
+    * Redefinition of the "weak" function defined in:
     * fs-nasa-cfs-mission-v0/third-party/freertos-v10.5.1-gcc-riscv/portable/GCC/RISC-V/portASM.S".
     * The only diference it is that now handles external interruptions.
 */
@@ -144,7 +144,7 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
 
 
 /*
-    * Enables Fault Injection Mode, where it is set a 
+    * Enables Fault Injection Mode, where it is set a
     * Interrutption Routine in the UART1 port.
     * It is expected a 14 byte array containing information
     * to perform the injection, described as:
@@ -183,7 +183,7 @@ void HLP_vPrintChar(char c, int8_t out) {
 
 
 // called from ../osal/src/bsp/generic-freetos/src/bsp_start.c
-void HLP_vSystemConfig(void) 
+void HLP_vSystemConfig(void)
 {
 
     /**************************************************************
@@ -245,7 +245,7 @@ void HLP_vSystemConfig(void)
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Executing at hart (ID): %d\r\n", __func__, __LINE__, (int)hartid);
 
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Size of char:%d short:%d int:%d long:%d long long:%d float:%d double:%d char*:%d void*:%d\r\n",
-        __func__, __LINE__, 
+        __func__, __LINE__,
         sizeof(char),
         sizeof(short),
         sizeof(int),
@@ -257,12 +257,12 @@ void HLP_vSystemConfig(void)
         sizeof(void*)
     );
 
-    if (HLP_bIsBigEndian()) 
+    if (HLP_bIsBigEndian())
     {
 
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: CPU is big endian.\r\n", __func__, __LINE__);
     }
-    else 
+    else
     {
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: CPU is little endian.\r\n", __func__, __LINE__);
     }
@@ -280,7 +280,7 @@ void HLP_vSystemConfig(void)
     uint64_t rtcclk = LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK / div;
 
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: PolarFire SoC REFCLK:%lu RTCCLK:%lu CR:%lx div:%lu rtc:%lu\r\n",
-        __func__, __LINE__, 
+        __func__, __LINE__,
         LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK,
         LIBERO_SETTING_MSS_RTC_TOGGLE_CLK,
         cr,
@@ -290,7 +290,7 @@ void HLP_vSystemConfig(void)
 
     if ((LIBERO_SETTING_DDRPHY_MODE & DDRPHY_MODE_MASK) != DDR_OFF_MODE) {
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: Libero/PFSoC Configurator DDR address: 0x%08lx - 0x%08lx size: 0x%08lx\r\n",
-            __func__, __LINE__, 
+            __func__, __LINE__,
             LIBERO_SETTING_DDR_32_CACHE,
             LIBERO_SETTING_DDR_32_CACHE + LIBERO_SETTING_DDR_32_CACHE_SIZE - 1,
             LIBERO_SETTING_DDR_32_CACHE_SIZE
@@ -322,6 +322,10 @@ void HLP_vSystemConfig(void)
 
 }
 
+void HLP_vSystemRestart(void) {
+    SYSREG->MSS_RESET_CR = 0xDEAD;
+}
+
 
 /********************************************************************************
  The system calls placeholder functions bellow are based on auto-generated
@@ -341,7 +345,7 @@ int __io_putchar(int ch) {
     uint8_t u8 = ch;
 
     MSS_UART_polled_tx(&g_mss_uart4_lo, &u8, 1);
-    
+
     return ch;
 }
 
