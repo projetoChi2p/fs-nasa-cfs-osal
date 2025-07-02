@@ -36,17 +36,17 @@ static struct timeval g_epoch_timeval;
 #define BOARD_BE "CPU is big endian.\r\n"
 
 
-void HLP_vSystemConfig(void) 
+void HLP_vSystemConfig(void)
 {
     assert(__SIZEOF_POINTER__ == 4);
 
     HLP_vConsoleInit();
 
-    if (HLP_bIsBigEndian()) 
+    if (HLP_bIsBigEndian())
     {
         HLP_vConsolePrintBytesBspUnlocked((uint8_t*)BOARD_BE, sizeof(BOARD_BE));
     }
-    else 
+    else
     {
         HLP_vConsolePrintBytesBspUnlocked((uint8_t*)BOARD_LE, sizeof(BOARD_LE));
     }
@@ -135,7 +135,7 @@ void HLP_vSmallDelay() {
 void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 {
     int i;
-    for (i = 0; i < size; i++) 
+    for (i = 0; i < size; i++)
     {
         printf("%c", (*data++));
     }

@@ -83,7 +83,7 @@
 
 
 void HLP_vSystemConfig(void);
-void HLP_vSystemReset(void);
+void HLP_vSystemRestart(void);
 void HLP_vRtosBringUp(void);
 void HLP_vBaremetalBringUp(void);
 

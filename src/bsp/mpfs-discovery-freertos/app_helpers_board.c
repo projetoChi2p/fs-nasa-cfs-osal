@@ -118,7 +118,7 @@ void freertos_risc_v_application_interrupt_handler(void) {
 
 
 /*
-    * The Interruption Sub-Routine that performs the FI.
+    * The Interruption Sub-Routine that performs the Fault Injection.
 */
 void FI_ISR(mss_uart_instance_t *this_uart)  {
     uint8_t     rx_buff [14];
@@ -132,14 +132,17 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
     [10 .. 13] = Not Used
     */
 
-    MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
+    // MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
 
-    memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
-    memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
+    // memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
+    // memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
 
     // Cast fi_addr to a pointer and flip the specified bit
-    uint32_t *injection_address = (uint32_t *)FI_addr;
-    *injection_address ^= (1U << FI_btf);
+    // uint32_t *injection_address = (uint32_t *)FI_addr;
+    // *injection_address ^= (1U << FI_btf);
+
+    HLP_vConsolePrintFormattedBaremetal("Reseting\r\n");
+    HLP_vSystemRestart();
 }
 
 

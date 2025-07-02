@@ -47,6 +47,7 @@ include_directories(
     polarfire_hal/platform
     polarfire_hal/boards/mpfs-discovery-kit/
     polarfire_hal/boards/mpfs-discovery-kit/platform_config/lim-release
+    # polarfire_hal/boards/mpfs-discovery-kit/platform_config/ddr-release
 
     ${OSAL_FREERTOS_SRC_DIR}/portable/GCC/RISC-V
     ${OSAL_FREERTOS_SRC_DIR}/portable/GCC/RISC-V/chip_specific_extensions/RISCV_MTIME_CLINT_no_extensions
@@ -63,7 +64,6 @@ FILE(GLOB VENDOR_CODE
     vendor/*.c
     polarfire_hal/platform/mpfs_hal/startup_gcc/*.c
     polarfire_hal/platform/mpfs_hal/startup_gcc/*.S
-    polarfire_hal/platform/mpfs_hal/startup_gcc/*.c
     polarfire_hal/platform/mpfs_hal/common/*.c
     polarfire_hal/platform/mpfs_hal/common/nwc/*.c
     polarfire_hal/platform/hal/*.c

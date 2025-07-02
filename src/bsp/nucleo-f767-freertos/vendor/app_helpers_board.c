@@ -439,6 +439,29 @@ void HLP_vSystemConfig(void)
 
 }
 
+/*****************************************************
+ */
+void HLP_vSystemRestart(void) {
+    /* Request a reset from software for ARM Cortex M7*/
+    /*  See https://community.freescale.com/thread/99740
+        To write to this register, you must write 0x5FA to the VECTKEY field, otherwise the processor ignores the write.
+        SYSRESETREQ will cause a system reset asynchronously, so need to wait afterwards.
+    */
+    /* Ensure all memory operations are complete before reset */
+    __DSB();
+
+    /* Write the reset value to the AIRCR register with the required key */
+    SCB->AIRCR = (0x5FA << SCB_AIRCR_VECTKEY_Pos) |         /*!< SCB AIRCR: VECTKEY Position */
+                 (SCB->AIRCR & SCB_AIRCR_PRIGROUP_Msk) |    /*!< Preserve priority group */
+                 SCB_AIRCR_SYSRESETREQ_Msk;                 /*!< SCB AIRCR: SYSRESETREQ Mask */
+
+    __DSB();
+    for (;;) {
+        /* wait until reset*/
+    }
+}
+
+
 
 /*****************************************************
  */

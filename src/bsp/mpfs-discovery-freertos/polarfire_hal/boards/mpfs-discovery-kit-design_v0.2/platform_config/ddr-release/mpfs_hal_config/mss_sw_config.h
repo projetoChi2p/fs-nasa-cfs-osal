@@ -164,7 +164,7 @@
  * The reason you may want to use below is to save code space.
  */
 #define SGMII_SUPPORT
-//#define DDR_SUPPORT
+#define DDR_SUPPORT
 #define MSSIO_SUPPORT
 
 /*
@@ -186,8 +186,8 @@
  * If you need to edit this function, make another copy of the function in your
  * application without the weak linking attribute. This copy will then get linked.
  * */
-//#define DEBUG_DDR_INIT
-//#define DEBUG_DDR_RD_RW_FAIL
+// #define DEBUG_DDR_INIT
+// #define DEBUG_DDR_RD_RW_FAIL
 //#define DEBUG_DDR_RD_RW_PASS
 //#define DEBUG_DDR_CFG_DDR_SGMII_PHY
 //#define DEBUG_DDR_DDRCFG
