@@ -150,7 +150,7 @@
  * Note: If you are the zero stage bootloader, set this to one.
  */
 #ifndef MPFS_HAL_CLEAR_MEMORY
-#define MPFS_HAL_CLEAR_MEMORY  1
+#define MPFS_HAL_CLEAR_MEMORY  0
 #endif
 
 /*

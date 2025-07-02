@@ -228,9 +228,9 @@ void HLP_vSystemConfig(void)
         }
     }
 
-    #ifdef ENABLE_FI
+    // #ifdef ENABLE_FI
         setup_FI_ISR();
-    #endif
+    // #endif
 
 
     /**************************************************************
