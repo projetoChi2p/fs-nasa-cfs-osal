@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2019-2021 Microchip FPGA Embedded Systems Solutions.
+ * Copyright 2019-2022 Microchip FPGA Embedded Systems Solutions.
  *
  * SPDX-License-Identifier: MIT
  *
@@ -20,6 +20,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "mpfs_hal/mss_hal.h"
 #include "mss_l2_cache.h"
 
@@ -46,8 +47,14 @@ static void check_config_l2_scratchpad(void);
  */
 __attribute__((weak)) void config_l2_cache(void)
 {
-    ASSERT(LIBERO_SETTING_WAY_ENABLE < 16U);
-
+    static_assert(LIBERO_SETTING_WAY_ENABLE < 16U, "Too many ways");
+    /*
+     * confirm the amount of l2lim used in the Linker script has been allocated
+     * in the MSS Configurator
+     */
+    ASSERT(((const uint64_t)&__l2lim_end - (const uint64_t)&__l2lim_start)\
+            <= ((15U - LIBERO_SETTING_WAY_ENABLE) * WAY_BYTE_LENGTH));
+            
     /*
      * Set the number of ways that will be shared between cache and scratchpad.
      */
@@ -63,12 +70,10 @@ __attribute__((weak)) void config_l2_cache(void)
 
     /* If you are not using scratchpad, no need to include the following code */
 
-    ASSERT(LIBERO_SETTING_WAY_ENABLE >= LIBERO_SETTING_NUM_SCRATCH_PAD_WAYS);
-
-
+    static_assert(LIBERO_SETTING_WAY_ENABLE >= LIBERO_SETTING_NUM_SCRATCH_PAD_WAYS, "Scratchpad Missing");
 
     /*
-     * Compute the mask used to specify ways that will be used by the
+     * Compute the mask (In HSS CONFIG_SERVICE_SCRUB=y) used to specify ways that will be used by the
      * scratchpad.
      */
 
@@ -173,7 +178,6 @@ static void check_config_l2_scratchpad(void)
     const uint64_t end = (const uint64_t)&__l2_scratchpad_vma_end;
     const uint64_t start = (const uint64_t)&__l2_scratchpad_vma_start;
     uint64_t modulo;
-
 
     ASSERT(start >= (uint64_t)ZERO_DEVICE_BOTTOM);
     ASSERT(end < (uint64_t)ZERO_DEVICE_TOP);

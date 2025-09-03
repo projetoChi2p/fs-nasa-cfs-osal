@@ -97,7 +97,7 @@
  *   MPFS_HAL_LAST_HART above
  *
  */
-#define IMAGE_LOADED_BY_BOOTLOADER 0
+#define IMAGE_LOADED_BY_BOOTLOADER 1
 #if (IMAGE_LOADED_BY_BOOTLOADER == 0)
 #define MPFS_HAL_HW_CONFIG
 #endif
@@ -111,7 +111,7 @@
  * linker scripts.
  */
 
-//#define MPFS_HAL_SHARED_MEM_ENABLED
+#define MPFS_HAL_SHARED_MEM_ENABLED
 
 
 /* define the required tick rate in Milliseconds */
