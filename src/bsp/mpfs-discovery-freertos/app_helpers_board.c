@@ -323,6 +323,36 @@ void HLP_vSystemRestart(void) {
     SYSREG->MSS_RESET_CR = 0xDEAD;
 }
 
+uint32_t HLP_uGetResetType(void) {
+    uint32_t reset_type;
+    uint32_t reset_register;
+
+    /* Read the Reset Status Register */
+    reset_register = SYSREG->RESET_SR;
+    SYSREG->RESET_SR = 0;
+
+    if (reset_register & RESET_SR_SCB_PERIPH_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_POWERON;
+    }
+    else if (reset_register & RESET_SR_FABRIC_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_EXTERNAL;
+    }
+    else if (reset_register & RESET_SR_WDOG_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_WATCHDOG;
+    }
+    else if (reset_register & (0x01 << 0x8))
+    {
+        reset_type = RESET_TYPE_SOFTWARE;
+    }
+    else
+    {
+        reset_type = RESET_TYPE_POWERON;
+    }
+}
+
 
 /********************************************************************************
  The system calls placeholder functions bellow are based on auto-generated
