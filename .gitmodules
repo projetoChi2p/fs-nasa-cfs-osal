@@ -1,3 +1,0 @@
-[submodule "src/bsp/mpfs-discovery-freertos/platform"]
-	path = src/bsp/mpfs-discovery-freertos/platform
-	url = https://github.com/polarfire-soc/platform.git
