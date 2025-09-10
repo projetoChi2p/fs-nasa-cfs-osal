@@ -41,7 +41,7 @@ include_directories(
     vendor
 )
 
-# Define drivers used by bootloader
+# Define drivers used by the application
 set(CONFIG_MSS_MMUART   TRUE)
 set(CONFIG_MSS_GPIO     TRUE)
 set(CONFIG_MSS_MMC      TRUE)
