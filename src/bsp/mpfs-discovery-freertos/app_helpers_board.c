@@ -33,9 +33,6 @@
 uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 #endif
 
-
-
-extern int main(void);
 extern void freertos_risc_v_trap_handler( void );
 extern void freertos_vector_table( void );
 
@@ -50,9 +47,6 @@ void u54_1(void) {
     (void)main();
 }
 #endif
-
-
-
 
 void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 {
