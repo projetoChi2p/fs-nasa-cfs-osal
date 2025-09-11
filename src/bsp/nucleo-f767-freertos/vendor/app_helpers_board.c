@@ -12,11 +12,199 @@
 
 #include "app_helpers.h"
 
+#ifdef BUILD_STM32F767_TRACE_ENABLE
+
+// See also ST Microeletronics Reference manual RM0410 "Debug support (DBG)" chapter
+
+/* The configure_tracing() and other supporting functions 
+   below are based on the code from
+   https://github.com/PetteriAimonen/STM32_Trace_Example
+   which is declared in the repository as released into 
+   the public domain.
+*/
+
+void ITM_Print(int port, const char *p)
+{
+    if ((ITM->TCR & ITM_TCR_ITMENA_Msk) && (ITM->TER & (1UL << port)))
+    {
+        while (*p)
+        {
+            while (ITM->PORT[port].u32 == 0);
+            ITM->PORT[port].u8 = *p++;
+        }
+    }
+}
+
+extern uint16_t g_u16MessageCount;
+
+
+#define BOARD_SYSCONF4 "May not enable trace.\r\n"
+
+void configure_tracing()
+{
+
+    #ifdef BUILD_STM32F767_TRACE_SWO
+
+    // RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;
+    // AFIO->MAPR |= (2 << 24); // Disable JTAG to release TRACESWO
+
+    if (!(DBGMCU->CR & DBGMCU_CR_TRACE_IOEN))
+    {
+        // Some (all?) STM32s don't allow writes to DBGMCU register until
+        // C_DEBUGEN in CoreDebug->DHCSR is set. This cannot be set by the
+        // CPU itself, so in practice you need to connect to the CPU with
+        // a debugger once before resetting it.
+        HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_SYSCONF4, sizeof(BOARD_SYSCONF4));
+        //return;
+    }
+
+    /* For NUCLEO-F767ZI (MB1137 Rev. B) board the SWO pin is available
+       on CN6 pin 6 on the ST-Link side of the board:
+       CN6-1 
+       CN6-2 JTCK
+       CN6-3 GND
+       CN6-4 JTMS
+       CN6-5 NRST
+       CN6-6 SWO
+     */
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = SWO_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP; ///GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF0_SWJ;
+    HAL_GPIO_Init(SWO_GPIO_Port, &GPIO_InitStruct);
+
+    #else /* BUILD_STM32F767_TRACE_SWO */
+
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin = GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+    GPIO_InitStruct.Alternate = GPIO_AF0_TRACE;
+    HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+    /* TRACE pins on NUCLEO-F767ZI (MB1137 Rev. B) board:
+
+      PE2 (CN11 pin 46) -> TRACECLK
+      PE3 (CN11 pin 47) -> TRACED0
+      PE4 (CN11 pin 48) -> TRACED1
+      PE5 (CN11 pin 50) -> TRACED2
+      PE6 (CN11 pin 62) -> TRACED3
+
+      See also STM32 Nucleo-144 MB1137 user manual UM1974, chapter "ST morpho connector"
+               STM32-Nucleo-144 MB1137 electric schematics
+               STM32F76... Datasheet DS11532, chapter "Pinouts and pin description"
+               STM32F7.... Reference manual RM0410
+     */
+
+    #endif /* ! BUILD_STM32F767_TRACE_SWO */
+
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; 
+
+    #ifndef BUILD_STM32F767_TRACE_SWO
+    TPI->CSPSR = 8;
+    #endif
+    TPI->FFCR = 0x102; // TPIU packet framing enabled when bit 2 is set.
+                       // Can use 0x100 if you only need DWT/ITM and not ETM.
+
+    #ifdef BUILD_STM32F767_TRACE_SWO
+        TPI->ACPR = 3;//(12500000 / 115200) - 1; // See also SystemClock_Config()
+        TPI->SPPR = 2; // Pin protocol = NRZ/USART: 
+                       // 0x1 = Single Wire Output (Manchester)
+                       // 0x2 = Single Wire Output (NRZ)
+    #else
+        TPI->SPPR = 0;
+    #endif
+
+    DBGMCU->CR |= DBGMCU_CR_TRACE_IOEN;
+
+    //DBGMCU->CR |= 0x00000060;
+    DBGMCU->CR &= ~DBGMCU_CR_TRACE_MODE_Msk;
+    DBGMCU->CR |= (0b00 << DBGMCU_CR_TRACE_MODE_Pos); 
+
+
+    /* Configure PC sampling and exception trace  */
+    DWT->LAR = 0xC5ACCE55;
+    DWT->CTRL = (1 << DWT_CTRL_CYCTAP_Pos) // Prescaler for PC sampling
+                                           // 0 = x64, 1 = x1024
+              | (0 << DWT_CTRL_POSTPRESET_Pos) // Postscaler for PC sampling
+                                                // Divider = value + 1
+              | (1 << DWT_CTRL_PCSAMPLENA_Pos) // Enable PC sampling
+              | (1 << DWT_CTRL_SYNCTAP_Pos)    // Sync packet interval
+                                               // 0 = Off, 1 = Every 2^23 cycles,
+                                               // 2 = Every 2^25, 3 = Every 2^27
+              | (1 << DWT_CTRL_EXCTRCENA_Pos)  // Enable exception trace
+              | (1 << DWT_CTRL_CYCCNTENA_Pos); // Enable cycle counter
+    
+    /* Configure instrumentation trace macroblock */
+    ITM->LAR = 0xC5ACCE55;
+    ITM->TCR = (1 << ITM_TCR_TraceBusID_Pos) // Trace bus ID for TPIU
+             | (1 << ITM_TCR_DWTENA_Pos) // Enable events from DWT
+             | (1 << ITM_TCR_SYNCENA_Pos) // Enable sync packets
+             | (1 << ITM_TCR_ITMENA_Pos); // Main enable for ITM
+    ITM->TER = 0xFFFFFFFF; // Enable all stimulus ports
+    
+    /* Configure embedded trace macroblock */
+   /* ETM->LAR = 0xC5ACCE55;
+    ETM_SetupMode();
+    ETM->CR = ETM_CR_ETMEN // Enable ETM output port
+            | ETM_CR_STALL_PROCESSOR // Stall processor when fifo is full
+            | ETM_CR_BRANCH_OUTPUT
+            | ETM_CR_TRACE_ADDR
+            | ETM_CR_TRACE_DATA
+            | ETM_CR_PORTSIZE_4BIT; // Report all branches
+         // | ETM_CR_PORTIZE_8BIT;  // Add this code in F103 to set port_size 21, 6, 5, 4 as 0, 0, 0, 1 for 8Bit.
+    ETM->TRACEIDR = 2; // Trace bus ID for TPIU
+    ETM->TECR1 = 0x00000000; // Trace always enabled
+    //ETM->FFRR = ETM_FFRR_EXCLUDE; // Stalling always enabled
+    ETM->FFLR = 24; */// Stall when less than N bytes free in FIFO (range 1..24)
+                    // Larger values mean less latency in trace, but more stalls.
+    // ETM->TRIGGER = 0x0000406F; // Add this code in F103 to define the trigger event
+    // ETM->TEEVR = 0x0000006F;   // Add this code in F103 to  define an event to start/stop
+    // Note: we do not enable ETM trace yet, only for specific parts of code.
+    //ETM_TraceMode(); // Set ETM to trace mode
+
+    // ETM->LAR = 0xC5ACCE55;      
+
+    // ETM_SetupMode();
+
+    // ETM->TRIGGER = 0x0;             // No specific trigger
+    // ETM->TEEVR = 0x0;               // No specific event
+    // ETM->TECR1 = 0x0;               // Trace always
+    // ETM->FFLR = 0x10;               // FIFO threshold
+    // ETM->TRACEIDR = 0x2;            // Trace ID
+    // ETM->CR = ETM_CR_ETMEN               // Enable ETM output
+    //     | ETM_CR_BRANCH_OUTPUT       // Trace branches (key for basic blocks)
+    //     | ETM_CR_TRACE_ADDR          // Trace address (not just data)
+    //     | ETM_CR_PORTSIZE_4BIT       // 4-bit port, use 8-bit if supported
+    //     | ETM_CR_STALL_PROCESSOR;   
+    // DWT->COMP0 = (uint32_t)&g_u16MessageCount;
+    // DWT->MASK0 = 0;
+    // DWT->FUNCTION0 = (3 << DWT_FUNCTION_FUNCTION_Pos); 
+    // ETM->CR |= 1;
+
+    // ETM_TraceMode(); // Set ETM to trace mode
+
+    while (0)
+    {
+      ITM_Print(1, "Sort");
+      for (int i = 0; i < 100; i++)
+        asm("nop");
+    }
+}
+
+#endif /* BUILD_STM32F767_TRACE_ENABLE */
 
 
 
 #define BOARD_SYSCONF1 "\r\nb"
 #define BOARD_SYSCONF2 "oot\r\n"
+#define BOARD_SYSCONF3 "Arm Cortex-M ETM/TPIU trace enabled.\r\n"
 
 #define BOARD_LE "le.\r\n"
 #define BOARD_BE "be.\r\n"
@@ -329,9 +517,17 @@ void SystemClock_Config(void) {
     RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    #ifdef BUILD_STM32F767_TRACE_ENABLE
+    // Clock frequency will be lower when trace is enabled to reduce loss of trace data.
+    // See also collaterial in MX_USART3_UART_Init()
+    RCC_OscInitStruct.PLL.PLLM = 4;
+    RCC_OscInitStruct.PLL.PLLN = 100;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+    #else
     RCC_OscInitStruct.PLL.PLLM = 4;
     RCC_OscInitStruct.PLL.PLLN = 216;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+    #endif
     RCC_OscInitStruct.PLL.PLLQ = 4;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
@@ -346,8 +542,13 @@ void SystemClock_Config(void) {
     /** Initializes the CPU, AHB and APB buses clocks
     */
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+    #ifdef BUILD_STM32F767_TRACE_ENABLE
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    #else
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    #endif
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
@@ -363,7 +564,11 @@ void SystemClock_Config(void) {
 
 #ifdef HLP_USE_UART3
     PeriphClkInitStruct.PeriphClockSelection |= RCC_PERIPHCLK_USART3;
+    #ifdef BUILD_STM32F767_TRACE_ENABLE
+    PeriphClkInitStruct.Usart3ClockSelection = RCC_USART3CLKSOURCE_SYSCLK;
+    #else
     PeriphClkInitStruct.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
+    #endif
 #endif
 
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
@@ -436,6 +641,11 @@ void HLP_vSystemConfig(void)
     {
         HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_LE, sizeof(BOARD_LE));
     }
+
+    #ifdef BUILD_STM32F767_TRACE_ENABLE
+    configure_tracing();
+    HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_SYSCONF3, sizeof(BOARD_SYSCONF3));
+    #endif
 
 }
 
