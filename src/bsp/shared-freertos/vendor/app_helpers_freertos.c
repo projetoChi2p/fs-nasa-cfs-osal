@@ -48,6 +48,12 @@ char hlp_console_printf_buffer[HLP_CONSOLE_PRINTF_BUFFER_SIZE];
 /*
     Variables for trace analysis.
 */
+#if ((configUSE_TRACE_FACILITY == 1) && (!defined(FREERTOS_TRACE_ENABLED)))
+    char trace_task_name_in [16];
+    char trace_task_name_out [16];
+#endif
+
+
 
 void vApplicationStackOverflowHook( TaskHandle_t xTask, char * pcTaskName )
 {
@@ -613,6 +619,7 @@ void HLP_ReportTasksIfComplete(void)
 {
     uint32_t u32NumberOfTasks;
     uint32_t ulTotalRunTime;
+    char cStatus;
     OS_task_prop_t task_prop;
     unsigned long ul;
     osal_id_t task_id;
@@ -693,7 +700,7 @@ void HLP_ReportTasksIfComplete(void)
         stack_startbyte = g_task_status_array[ x ].pxStackBase;
         vTaskSetApplicationTaskTag(g_task_status_array[ x ].xHandle, (TaskHookFunction_t) (g_task_status_array[ x ].xTaskNumber - 1 + 'A'));
 
-        printf("^%c;%s;%lx;%6lu\n",
+        printf("^%c;%s;%x;%6lu\n",
             (char) xTaskGetApplicationTaskTag(g_task_status_array[ x ].xHandle),
             //(unsigned long) g_task_status_array[ x ].xTaskNumber,
             task_name, 
