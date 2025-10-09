@@ -62,6 +62,14 @@ void HLP_vSystemConfig(void)
     HLP_vRtosBringUp();
 }
 
+void HLP_vSystemRestart(void) {
+    exit(1);
+}
+
+uint32_t HLP_uGetResetType(void) {
+    return RESET_TYPE_SOFTWARE;
+}
+
 void HLP_vLEDToggle(int led)
 {
 //    switch (led) {
