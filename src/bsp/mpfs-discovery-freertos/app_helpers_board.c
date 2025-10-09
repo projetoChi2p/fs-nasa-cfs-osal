@@ -64,6 +64,9 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 #define DELAY_CYCLES_2MS               ((uint32_t)(DELAY_CYCLES_500_NS * 4000U))
 #define DELAY_CYCLES_100MS             ((uint32_t)(DELAY_CYCLES_2MS * 50U))
 
+#define LIM_BASE_ADDRESS 0x08000000u
+#define LIM_SIZE 0x200000u
+
 
 #define rdcycle() read_csr(cycle)
 
@@ -151,7 +154,6 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
     *   [10 .. 13]  = Not Used
 */
 void setup_FI_ISR() {
-    PLIC_init();
 
     (void)mss_config_clk_rst(MSS_PERIPH_MMUART1, (uint8_t)MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
 
@@ -178,8 +180,6 @@ void HLP_vPrintChar(char c, int8_t out) {
     MSS_UART_polled_tx(&g_mss_uart4_lo, (uint8_t*)trace_task_tag, 3);
 }
 
-
-// called from ../osal/src/bsp/generic-freetos/src/bsp_start.c
 void HLP_vSystemConfig(void)
 {
 
@@ -199,6 +199,7 @@ void HLP_vSystemConfig(void)
     (void)mss_config_clk_rst(MSS_PERIPH_GPIO2,   (uint8_t) MPFS_HAL_FIRST_HART, PERIPHERAL_ON);
     (void)mss_config_clk_rst(MSS_PERIPH_MMUART4, (uint8_t) MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
     (void)mss_config_clk_rst(MSS_PERIPH_CFM,     (uint8_t) MPFS_HAL_FIRST_HART, PERIPHERAL_ON);
+    (void)mss_config_clk_rst(MSS_PERIPH_EMMC,    (uint8_t) MPFS_HAL_FIRST_HART,  PERIPHERAL_ON);
 
     MSS_UART_init( &( g_mss_uart4_lo ),
                    MSS_UART_115200_BAUD /* MSS_UART_921600_BAUD MSS_UART_115200_BAUD */,
@@ -208,23 +209,36 @@ void HLP_vSystemConfig(void)
     MSS_GPIO_config(GPIO1_LO, MSS_GPIO_9, MSS_GPIO_OUTPUT_MODE);
     MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 0);
 
+    PLIC_init();
+
+    PLIC_EnableIRQ(MMC_main_PLIC);
+    PLIC_EnableIRQ(MMC_wakeup_PLIC);
+
+    __enable_irq();
+
+    /* DMA init for MMC */
+    MSS_MPU_configure(
+        MSS_MPU_MMC, MSS_MPU_PMP_REGION3, LIM_BASE_ADDRESS, LIM_SIZE,
+        MPU_MODE_READ_ACCESS | MPU_MODE_WRITE_ACCESS | MPU_MODE_EXEC_ACCESS,
+        MSS_MPU_AM_NAPOT, 0u);
+
     // Just some blinking for visually observing a reboot
-    for (int i=0; i<3; i++)
+    for (int i = 0; i < 3; i++)
     {
         MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 0);
-        for (int s=0; s<1; s++){
+        for (int s = 0; s < 1; s++){
             minidelay(DELAY_CYCLES_100MS);
         }
 
         MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 1);
-        for (int s=0; s<1; s++){
+        for (int s = 0; s < 1; s++){
             minidelay(DELAY_CYCLES_100MS);
         }
     }
 
-    // #ifdef ENABLE_FI
+    #ifdef ENABLE_FI
         setup_FI_ISR();
-    // #endif
+    #endif
 
 
     /**************************************************************
@@ -271,7 +285,7 @@ void HLP_vSystemConfig(void)
    /*
     * Change the RTC clock divisor, so RTC clock is 1MHz
     */
-    //set_RTC_divisor();
+    // set_RTC_divisor();
     uint64_t cr = SYSREG->RTC_CLOCK_CR;
     uint64_t div = cr & ~(0x01U<<16);
     uint64_t rtcclk = LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK / div;

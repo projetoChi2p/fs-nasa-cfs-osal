@@ -89,11 +89,7 @@ FILE(GLOB VENDOR_CODE
     ../shared-freertos/vendor/*.c
     vendor/*.c
     app_helpers_board.c
-    # application/hart0/e51.c
-    # application/hart1/u54_1.c
-    # application/hart2/u54_2.c
-    # application/hart3/u54_3.c
-    # application/hart4/u54_4.c
+    middleware/fatfs/*.c
     middleware/vector_table.S
 )
 

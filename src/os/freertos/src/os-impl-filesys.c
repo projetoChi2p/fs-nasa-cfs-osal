@@ -25,7 +25,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
- 
+
 
 /**
  * \file     os-impl-filesys.c
@@ -57,6 +57,7 @@
 #include "include/ff_headers.h"
 #endif
 
+#include "fatfs/ff.h"
 #include "os-impl-filesys.h"
 
 
@@ -76,7 +77,7 @@
  *  Must be multiple of sector size, which is 512 bytes, and at least twice as big.
  */
 #define FREERTOS_FAT_SECTOR_SIZE 512
-#define FREERTOS_FAT_RAMDISK_CACHE_MIN_SIZE (FREERTOS_FAT_SECTOR_SIZE*5)  
+#define FREERTOS_FAT_RAMDISK_CACHE_MIN_SIZE (FREERTOS_FAT_SECTOR_SIZE*5)
 #endif
 
 /*
@@ -91,14 +92,14 @@ OS_impl_filesys_internal_record_t OS_impl_filesys_table[OS_MAX_FILE_SYSTEMS];
                                 Filesys API
  ***************************************************************************************/
 
-//        d8888 8888888b. 8888888 
-//       d88888 888   Y88b  888   
-//      d88P888 888    888  888   
-//     d88P 888 888   d88P  888   
-//    d88P  888 8888888P"   888   
-//   d88P   888 888         888   
-//  d8888888888 888         888   
-// d88P     888 888       8888888 
+//        d8888 8888888b. 8888888
+//       d88888 888   Y88b  888
+//      d88P888 888    888  888
+//     d88P 888 888   d88P  888
+//    d88P  888 8888888P"   888
+//   d88P   888 888         888
+//  d8888888888 888         888
+// d88P     888 888       8888888
 
 /* --------------------------------------------------------------------------------------
     Name: OS_FreeRTOS_FileSysAPI_Impl_Init
@@ -138,9 +139,9 @@ int32 OS_FreeRTOS_FileSysAPI_Impl_Init(void)
 
         mfs_init();
     #else
-        /* Initialize known filesystems. FreeRTOS+FAT keeps a list of known FSs, 
+        /* Initialize known filesystems. FreeRTOS+FAT keeps a list of known FSs,
            up to ffconfigMAX_FILE_SYS.
-           There will always be 1 FreeRTOS+FAT filesystem representing the system 
+           There will always be 1 FreeRTOS+FAT filesystem representing the system
            root "/", which will take one position in FreeRTOS+FAT known filesystems table.
         */
         //Check consistency between OSAL and FreeRTOS+FAT limits
@@ -156,17 +157,17 @@ int32 OS_FreeRTOS_FileSysAPI_Impl_Init(void)
     return OS_SUCCESS;
 }
 
-//  .d8888b.  888                     888           d88P  .d8888b.  888                     
-// d88P  Y88b 888                     888          d88P  d88P  Y88b 888                     
-// Y88b.      888                     888         d88P   Y88b.      888                     
-//  "Y888b.   888888  8888b.  888d888 888888     d88P     "Y888b.   888888 .d88b.  88888b.  
-//     "Y88b. 888        "88b 888P"   888       d88P         "Y88b. 888   d88""88b 888 "88b 
-//       "888 888    .d888888 888     888      d88P            "888 888   888  888 888  888 
-// Y88b  d88P Y88b.  888  888 888     Y88b.   d88P       Y88b  d88P Y88b. Y88..88P 888 d88P 
-//  "Y8888P"   "Y888 "Y888888 888      "Y888 d88P         "Y8888P"   "Y888 "Y88P"  88888P"  
-//                                                                                 888      
-//                                                                                 888      
-//                                                                                 888      
+//  .d8888b.  888                     888           d88P  .d8888b.  888
+// d88P  Y88b 888                     888          d88P  d88P  Y88b 888
+// Y88b.      888                     888         d88P   Y88b.      888
+//  "Y888b.   888888  8888b.  888d888 888888     d88P     "Y888b.   888888 .d88b.  88888b.
+//     "Y88b. 888        "88b 888P"   888       d88P         "Y88b. 888   d88""88b 888 "88b
+//       "888 888    .d888888 888     888      d88P            "888 888   888  888 888  888
+// Y88b  d88P Y88b.  888  888 888     Y88b.   d88P       Y88b  d88P Y88b. Y88..88P 888 d88P
+//  "Y8888P"   "Y888 "Y888888 888      "Y888 d88P         "Y8888P"   "Y888 "Y88P"  88888P"
+//                                                                                 888
+//                                                                                 888
+//                                                                                 888
 
 /*----------------------------------------------------------------
  *
@@ -208,11 +209,11 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                if ( filesys->blocksize != MFS_BLOCK_DATA_SIZE ) 
+                if ( filesys->blocksize != MFS_BLOCK_DATA_SIZE )
                 {
                     OS_DEBUG("Unsupported block size %u != %u\n", (unsigned int)(filesys->blocksize), (unsigned int)(MFS_BLOCK_DATA_SIZE));
                     return_code = OS_ERR_INVALID_SIZE;
@@ -220,7 +221,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
                 }
                 impl->device = -1;
             #else /* OS_FILESYSTEM_RAMDISK_IS_XILMFS */
-                if ( filesys->blocksize != FREERTOS_FAT_SECTOR_SIZE ) 
+                if ( filesys->blocksize != FREERTOS_FAT_SECTOR_SIZE )
                 {
                     OS_DebugPrintf(1, __func__, __LINE__, "Unsupported block size %u\n", (unsigned int)(filesys->blocksize));
                     return_code = OS_ERR_INVALID_SIZE;
@@ -242,12 +243,17 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
             return_code = OS_SUCCESS;
             break;
 
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            /* No op */
+            return_code = OS_SUCCESS;
+            break;
         default:
 
-            OS_DEBUG("v:%s d:%s m:%s v:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("v:%s d:%s m:%s v:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -285,7 +291,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
             filesys->system_mountpt[0] = '/';
             strncpy(&filesys->system_mountpt[1], filesys->volume_name, sizeof(filesys->system_mountpt) - 2);
             filesys->system_mountpt[sizeof(filesys->system_mountpt) - 1] = 0;
-            // OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name);
+            OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name);
         }
     }
 
@@ -318,7 +324,7 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
 
@@ -361,12 +367,17 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
             return_code = OS_SUCCESS;
             break;
 
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            /* No op */
+            return_code = OS_SUCCESS;
+            break;
         default:
 
-            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -390,14 +401,14 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
 } /* end OS_FileSysStopVolume_Impl */
 
 
-//  .d8888b.  888                        888             d88P 8888888888                                      888    
-// d88P  Y88b 888                        888            d88P  888                                             888    
-// 888    888 888                        888           d88P   888                                             888    
-// 888        88888b.   .d88b.   .d8888b 888  888     d88P    8888888  .d88b.  888d888 88888b.d88b.   8888b.  888888 
-// 888        888 "88b d8P  Y8b d88P"    888 .88P    d88P     888     d88""88b 888P"   888 "888 "88b     "88b 888    
-// 888    888 888  888 88888888 888      888888K    d88P      888     888  888 888     888  888  888 .d888888 888    
-// Y88b  d88P 888  888 Y8b.     Y88b.    888 "88b  d88P       888     Y88..88P 888     888  888  888 888  888 Y88b.  
-//  "Y8888P"  888  888  "Y8888   "Y8888P 888  888 d88P        888      "Y88P"  888     888  888  888 "Y888888  "Y888 
+//  .d8888b.  888                        888             d88P 8888888888                                      888
+// d88P  Y88b 888                        888            d88P  888                                             888
+// 888    888 888                        888           d88P   888                                             888
+// 888        88888b.   .d88b.   .d8888b 888  888     d88P    8888888  .d88b.  888d888 88888b.d88b.   8888b.  888888
+// 888        888 "88b d8P  Y8b d88P"    888 .88P    d88P     888     d88""88b 888P"   888 "888 "88b     "88b 888
+// 888    888 888  888 88888888 888      888888K    d88P      888     888  888 888     888  888  888 .d888888 888
+// Y88b  d88P 888  888 Y8b.     Y88b.    888 "88b  d88P       888     Y88..88P 888     888  888  888 888  888 Y88b.
+//  "Y8888P"  888  888  "Y8888   "Y8888P 888  888 d88P        888      "Y88P"  888     888  888  888 "Y888888  "Y888
 
 /*----------------------------------------------------------------
  *
@@ -428,20 +439,20 @@ int32 OS_FileSysCheckVolume_Impl(const OS_object_token_t *token, bool repair)
 int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
 {
     OS_filesys_internal_record_t*      filesys;
-#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS    
+#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     OS_impl_filesys_internal_record_t* impl;
 #endif
     int32                              return_code;
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
-#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS    
+#ifndef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
 #endif
 
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
 
@@ -474,7 +485,7 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
                     return_code = OS_ERR_FILE;
                     break;
                 }
-                
+
                 return_code = OS_SUCCESS;
                 break;
 
@@ -504,10 +515,10 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
                     break;
                 }
 
-                if ( (impl->allocated_disk->pxIOManager->xPartition.ucType != FF_T_FAT12) && 
+                if ( (impl->allocated_disk->pxIOManager->xPartition.ucType != FF_T_FAT12) &&
                     (impl->allocated_disk->pxIOManager->xPartition.ucType != FF_T_FAT16) )
                 {
-                    OS_DEBUG("FF_RAMDiskInit(%s) unexpected filesystem type: %d.\n", 
+                    OS_DEBUG("FF_RAMDiskInit(%s) unexpected filesystem type: %d.\n",
                     filesys->device_name,
                     impl->allocated_disk->pxIOManager->xPartition.ucType);
                     return_code = OS_INVALID_POINTER;
@@ -527,13 +538,16 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
 
             break;
-        
+        case OS_FILESYS_TYPE_FS_BASED:
+            /* No op */
+            return_code = OS_SUCCESS;
+            break;
         default:
 
-            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -558,14 +572,14 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
 } /* end OS_FileSysFormatVolume_Impl */
 
 
-// 888b     d888                            888           d88P 888     888                                                   888    
-// 8888b   d8888                            888          d88P  888     888                                                   888    
-// 88888b.d88888                            888         d88P   888     888                                                   888    
-// 888Y88888P888  .d88b.  888  888 88888b.  888888     d88P    888     888 88888b.  88888b.d88b.   .d88b.  888  888 88888b.  888888 
-// 888 Y888P 888 d88""88b 888  888 888 "88b 888       d88P     888     888 888 "88b 888 "888 "88b d88""88b 888  888 888 "88b 888    
-// 888  Y8P  888 888  888 888  888 888  888 888      d88P      888     888 888  888 888  888  888 888  888 888  888 888  888 888    
-// 888   "   888 Y88..88P Y88b 888 888  888 Y88b.   d88P       Y88b. .d88P 888  888 888  888  888 Y88..88P Y88b 888 888  888 Y88b.  
-// 888       888  "Y88P"   "Y88888 888  888  "Y888 d88P         "Y88888P"  888  888 888  888  888  "Y88P"   "Y88888 888  888  "Y888 
+// 888b     d888                            888           d88P 888     888                                                   888
+// 8888b   d8888                            888          d88P  888     888                                                   888
+// 88888b.d88888                            888         d88P   888     888                                                   888
+// 888Y88888P888  .d88b.  888  888 88888b.  888888     d88P    888     888 88888b.  88888b.d88b.   .d88b.  888  888 88888b.  888888
+// 888 Y888P 888 d88""88b 888  888 888 "88b 888       d88P     888     888 888 "88b 888 "888 "88b d88""88b 888  888 888 "88b 888
+// 888  Y8P  888 888  888 888  888 888  888 888      d88P      888     888 888  888 888  888  888 888  888 888  888 888  888 888
+// 888   "   888 Y88..88P Y88b 888 888  888 Y88b.   d88P       Y88b. .d88P 888  888 888  888  888 Y88..88P Y88b 888 888  888 Y88b.
+// 888       888  "Y88P"   "Y88888 888  888  "Y888 d88P         "Y88888P"  888  888 888  888  888  "Y88P"   "Y88888 888  888  "Y888
 
 /*----------------------------------------------------------------
  *
@@ -582,13 +596,16 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
     OS_impl_filesys_internal_record_t * impl;
     int32                               return_code;
 
+    /* Used for Chan FatFs*/
+    FRESULT result;
+
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
 
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             // Sanity check
@@ -612,12 +629,12 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
                     return_code = OS_ERR_FILE;
                     break;
                 }
-                
+
                 return_code = OS_SUCCESS;
                 break;
 
             #else /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
-                /* No action: FreeRTOS+FAT FF_RAMDiskInit() left RAM filesystem mounted 
+                /* No action: FreeRTOS+FAT FF_RAMDiskInit() left RAM filesystem mounted
                  * after formatting.
                  */
                 /* This implementation relies on FreeRTOS+FAT stdio features,
@@ -637,12 +654,28 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
             return_code = OS_SUCCESS;
             break;
 
+        case OS_FILESYS_TYPE_FS_BASED:
+            OS_DEBUG("OSAL: Starting Chan FATFS.\n");
+
+            result = f_mount(0, &impl->fatfs);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                OS_DEBUG("OSAL: Error mouting Chan FATFS ec: %x", return_code)
+                return_code = OS_ERROR;
+            }
+
+            break;
         default:
 
-            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -657,7 +690,7 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
                 // OS_FILESYS_TYPE_NORMAL_DISK,   /**< A traditional disk drive or something that emulates one */
                 // OS_FILESYS_TYPE_VOLATILE_DISK, /**< A temporary/volatile file system or RAM disk */
                 // OS_FILESYS_TYPE_MTD,           /**< A "memory technology device" such as FLASH or EEPROM */
-            );    
+            );
             OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
             break;
@@ -682,13 +715,16 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
     OS_impl_filesys_internal_record_t* impl;
     int32                              return_code;
 
+    /* Used for Chan FatFS*/
+    FRESULT                            result;
+
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
     impl  = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
 
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             // Sanity check
@@ -717,7 +753,7 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
                     break;
                 }
                 impl->device = -1;
-                
+
                 return_code = OS_SUCCESS;
                 break;
 
@@ -730,12 +766,26 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
             return_code = OS_SUCCESS;
             break;
 
+            case OS_FILESYS_TYPE_NORMAL_DISK:
+                /* To unmount the Filesystem it need to pass NULL as a parameter to f_mount */
+                result = f_mount(0, NULL);
+
+                if (result != FR_OK)
+                {
+                    return_code = OS_ERROR;
+                }
+                else
+                {
+                    return_code = OS_SUCCESS;
+                }
+
+            break;
         default:
 
-            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -750,7 +800,7 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
                 // OS_FILESYS_TYPE_NORMAL_DISK,   /**< A traditional disk drive or something that emulates one */
                 // OS_FILESYS_TYPE_VOLATILE_DISK, /**< A temporary/volatile file system or RAM disk */
                 // OS_FILESYS_TYPE_MTD,           /**< A "memory technology device" such as FLASH or EEPROM */
-            );    
+            );
             OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
             break;
@@ -760,14 +810,14 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
 } /* end OS_FileSysUnmountVolume_Impl */
 
 
-//  .d8888b.  888             888    
-// d88P  Y88b 888             888    
-// Y88b.      888             888    
-//  "Y888b.   888888  8888b.  888888 
-//     "Y88b. 888        "88b 888    
-//       "888 888    .d888888 888    
-// Y88b  d88P Y88b.  888  888 Y88b.  
-//  "Y8888P"   "Y888 "Y888888  "Y888 
+//  .d8888b.  888             888
+// d88P  Y88b 888             888
+// Y88b.      888             888
+//  "Y888b.   888888  8888b.  888888
+//     "Y88b. 888        "88b 888
+//       "888 888    .d888888 888
+// Y88b  d88P Y88b.  888  888 Y88b.
+//  "Y8888P"   "Y888 "Y888888  "Y888
 
 /*----------------------------------------------------------------
  *
@@ -783,11 +833,20 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
     OS_filesys_internal_record_t *filesys;
     OS_impl_filesys_internal_record_t *impl;
     osal_status_t return_code;
+
+    /* Variables for volatile Filesystem */
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     int mfs_status;
     int blocks_used;
     int blocks_free;
     #endif
+
+    /* Used for Chan FatFs */
+    FATFS   *fs;
+    DWORD   free_clusters;
+    DWORD   free_sectors;
+    DWORD   total_sectors;
+    FRESULT fs_result;
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
@@ -795,16 +854,16 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
     /*
      * Take action based on the type of volume
      */
-    switch(filesys->fstype) 
+    switch(filesys->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
 
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-                // In MFS, the number of blocks (filesys->numblocks) and block size 
+                // In MFS, the number of blocks (filesys->numblocks) and block size
                 // (filesys->blocksize) informed by the upper application layer are not
                 // the actual values for the MFS filesystem.
-                // An MFS block embeds metadata, including flags and indexes in the a double  
-                // linked list of blocks storing the same file. For instance, for a raw data 
+                // An MFS block embeds metadata, including flags and indexes in the a double
+                // linked list of blocks storing the same file. For instance, for a raw data
                 // block of 128 bytes an MFS block has 148 bytes.
                 // In the example above, the total RAM of size (filesys->numblocks * 128) is
                 // repurposed in MFS blocks of 148 bytes, hence the actual data capacity is at
@@ -812,9 +871,9 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
                 // comes from directory tree, taking other MFS blocks of 148 bytes.
                 // Here, we opted to inform to the application layer the size of block storing
                 // raw file data, which is the (filesys->blocksize).
-                // This conveys the semantic that a file of N bytes will take (N/filesys->blocksize) 
+                // This conveys the semantic that a file of N bytes will take (N/filesys->blocksize)
                 // blocks to store raw data, and not (N/MFS block size)
-                // Notwithstanding, the answer about number of blocks and free blocks will be the 
+                // Notwithstanding, the answer about number of blocks and free blocks will be the
                 // effective number of MFS blocks.
 
                 mfs_status = mfs_get_usage(impl->device, &blocks_used, & blocks_free);
@@ -846,11 +905,11 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
                 blocks_free = ff_diskfree(filesys->system_mountpt, NULL /* pxSectorCount */);
                 if ( stdioGET_ERRNO( ) != pdFREERTOS_ERRNO_NONE )
                 {
-                    OS_DEBUG("diskfree(v:%s d:%s m:%s v:%s): %s\n", 
-                        filesys->volume_name, 
-                        filesys->device_name, 
-                        filesys->system_mountpt, 
-                        filesys->virtual_mountpt, 
+                    OS_DEBUG("diskfree(v:%s d:%s m:%s v:%s): %s\n",
+                        filesys->volume_name,
+                        filesys->device_name,
+                        filesys->system_mountpt,
+                        filesys->virtual_mountpt,
                         strerror(stdioGET_ERRNO( )));
                     return_code = OS_ERROR;
                     break;
@@ -864,13 +923,41 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
 
             return_code = OS_SUCCESS;
             break;
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            /* Get volume information and free clusters */
+            fs_result = f_getfree("0:", &free_clusters, &fs);
 
+            if (fs_result != FR_OK)
+            {
+                return_code = OS_ERROR;
+            }
+            else
+            {
+                /*
+                * - Cluster: The unit for file allocation, composed of sectors.
+                * - Sector:  The physical unit on disk.
+                * - Block:   The logical unit for this application, equal to one sector.
+                */
+
+                total_sectors = (impl->fatfs.n_fatent - 2) * fs->csize;
+                free_sectors = free_clusters * fs->csize;
+
+                /* Block size is the Maximum sector size of the Filesystem */
+                result->block_size = _MAX_SS;
+                result->blocks_free = free_sectors;
+                result->total_blocks = total_sectors;
+
+                return_code = OS_SUCCESS;
+            }
+
+            break;
         default:
 
-            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n", 
-                filesys->volume_name, 
-                filesys->device_name, 
-                filesys->system_mountpt, 
+            OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
+                filesys->volume_name,
+                filesys->device_name,
+                filesys->system_mountpt,
                 filesys->virtual_mountpt,
                 filesys->address,
                 (unsigned long)filesys->blocksize,
@@ -896,14 +983,14 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
 } /* end OS_FileSysStatVolume_Impl */
 
 
-// 8888888888 d8b 888                   
-// 888        Y8P 888                   
-// 888            888                   
-// 8888888    888 888  .d88b.  .d8888b  
-// 888        888 888 d8P  Y8b 88K      
-// 888        888 888 88888888 "Y8888b. 
-// 888        888 888 Y8b.          X88 
-// 888        888 888  "Y8888   88888P' 
+// 8888888888 d8b 888
+// 888        Y8P 888
+// 888            888
+// 8888888    888 888  .d88b.  .d8888b
+// 888        888 888 d8P  Y8b 88K
+// 888        888 888 88888888 "Y8888b.
+// 888        888 888 Y8b.          X88
+// 888        888 888  "Y8888   88888P'
 
 
 
@@ -989,9 +1076,9 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
     /* Get a global lock. */
     return_code = OS_ObjectIdGetBySearch(
         OS_LOCK_MODE_GLOBAL, // could be OS_LOCK_MODE_EXCLUSIVE?
-        OS_OBJECT_TYPE_OS_FILESYS, 
+        OS_OBJECT_TYPE_OS_FILESYS,
         findMountPoint,
-        (void *)LocalPath, 
+        (void *)LocalPath,
         FileSystem
         );
 
@@ -1055,6 +1142,10 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
     FF_Stat_t xStat;
     #endif
 
+    /* Used for Chan FatFs */
+    FILINFO info;
+    FRESULT fs_result;
+
     return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (return_code != OS_SUCCESS)
     {
@@ -1074,7 +1165,7 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
     /*
      * Take action based on the type of volume
      */
-    switch(fstype) 
+    switch(fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -1087,16 +1178,16 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
                 {
                     // it is a file
                     FileStats->FileSize = file_size;
-                    FileStats->FileModeBits = ( OS_FILESTAT_MODE_WRITE | 
+                    FileStats->FileModeBits = ( OS_FILESTAT_MODE_WRITE |
                                                 OS_FILESTAT_MODE_READ );
                 }
                 else if (mfs_status == 2)
                 {
                     // it is a directory
                     FileStats->FileSize = 0;
-                    FileStats->FileModeBits = ( OS_FILESTAT_MODE_WRITE | 
-                                                OS_FILESTAT_MODE_READ  | 
-                                                OS_FILESTAT_MODE_EXEC  | 
+                    FileStats->FileModeBits = ( OS_FILESTAT_MODE_WRITE |
+                                                OS_FILESTAT_MODE_READ  |
+                                                OS_FILESTAT_MODE_EXEC  |
                                                 OS_FILESTAT_MODE_DIR );
                 }
                 else
@@ -1107,7 +1198,7 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
                 }
 
             #else
-                
+
 
                 #if ( ffconfigTIME_SUPPORT != 0 )
                     // FreeRTOS+FAT time is fed by FreeRTOS_time() macro
@@ -1184,6 +1275,24 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
 
             return_code = OS_SUCCESS;
             break;
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            fs_result = f_stat(device_path, &info);
+
+            if (fs_result == FR_OK)
+            {
+                FileStats->FileSize = info.fsize;
+                FileStats->FileTime.ticks = info.ftime;
+                FileStats->FileModeBits = info.fattrib;
+
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -1216,6 +1325,9 @@ int32 OS_FileRemove_Impl(const char *local_path)
     int mfs_result;
     #endif
 
+    /* Used for Chan FatFs */
+    FRESULT result;
+
     return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (return_code != OS_SUCCESS)
     {
@@ -1235,7 +1347,7 @@ int32 OS_FileRemove_Impl(const char *local_path)
     /*
      * Take action based on the type of volume
      */
-    switch(fstype) 
+    switch(fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -1255,6 +1367,20 @@ int32 OS_FileRemove_Impl(const char *local_path)
             #endif
 
             return_code = OS_SUCCESS;
+            break;
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            result = f_unlink(device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
             break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
@@ -1282,6 +1408,9 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
     OS_filesys_internal_record_t  *filesys;
     OS_impl_filesys_internal_record_t *filesys_impl;
     osal_status_t return_code;
+
+    /* Used for Chan FatFs*/
+    FRESULT fs_result;
 
     unsigned long old_fs_id; // see OS_ObjectIdToInteger()
     unsigned long new_fs_id; // see OS_ObjectIdToInteger()
@@ -1330,7 +1459,7 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
     /*
      * Take action based on the type of volume
      */
-    switch(fstype) 
+    switch(fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -1351,6 +1480,20 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
             #endif
 
             return_code = OS_SUCCESS;
+            break;
+        case OS_FILESYS_TYPE_FS_BASED:
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            fs_result = f_rename(device_path_old, device_path_new);
+
+            if (fs_result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
             break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");

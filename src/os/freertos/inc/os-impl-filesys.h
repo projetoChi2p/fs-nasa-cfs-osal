@@ -40,6 +40,9 @@
 
 typedef struct
 {
+    /* Used to know if the allocation of the File System space is given by the application
+     *   or it needs to be allocated.
+    */
     int  fs_alloc_type;
 
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -48,6 +51,8 @@ typedef struct
         FF_Disk_t *  allocated_disk;
     #endif
 
+    FATFS fatfs;
+    DIR dir;
 
 } OS_impl_filesys_internal_record_t;
 

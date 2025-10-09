@@ -57,6 +57,9 @@
 #include "include/ff_headers.h"
 #endif
 
+/* Chan FatFS */
+#include "fatfs/ff.h"
+
 
 /****************************************************************************************
                                    GLOBAL DATA
@@ -132,6 +135,10 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
     char device_path [OS_MAX_LOCAL_PATH_LEN];
     //uint8 fstype;
 
+    /* Used only for Chan FatFS */
+    BYTE mode;
+    FRESULT result;
+
     status = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (status != OS_SUCCESS)
     {
@@ -170,7 +177,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             switch (access)
             {
                 case OS_WRITE_ONLY:
-                    if (flags & OS_FILE_FLAG_TRUNCATE) 
+                    if (flags & OS_FILE_FLAG_TRUNCATE)
                     {
                         mfs_delete_file(impl->device, device_path);
                         mode = MFS_MODE_CREATE;
@@ -188,11 +195,11 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
                         mfs_delete_file(impl->device, device_path);
                         mode = MFS_MODE_CREATE;
                     }
-                    else if (flags & OS_FILE_FLAG_CREATE) 
+                    else if (flags & OS_FILE_FLAG_CREATE)
                     {
                         mode = MFS_MODE_WRITE;
                     }
-                    else if (flags & OS_FILE_FLAG_TRUNCATE)  
+                    else if (flags & OS_FILE_FLAG_TRUNCATE)
                     {
                         mfs_delete_file(impl->device, device_path);
                         mode = MFS_MODE_CREATE;
@@ -224,7 +231,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             switch (access)
             {
                 case OS_WRITE_ONLY:
-                    if (flags & OS_FILE_FLAG_TRUNCATE) 
+                    if (flags & OS_FILE_FLAG_TRUNCATE)
                     {
                         strcpy(os_perm_sz,"w");
                     }
@@ -240,11 +247,11 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
                     {
                         strcpy(os_perm_sz,"rw");
                     }
-                    else if (flags & OS_FILE_FLAG_CREATE) 
+                    else if (flags & OS_FILE_FLAG_CREATE)
                     {
                         strcpy(os_perm_sz,"ra");
                     }
-                    else if (flags & OS_FILE_FLAG_TRUNCATE)  
+                    else if (flags & OS_FILE_FLAG_TRUNCATE)
                     {
                         return OS_ERR_FILE;
                     }
@@ -272,6 +279,32 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
         #endif
 
     }
+    else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
+    {
+        mode = 0;
+
+        switch (access)
+        {
+        case OS_READ_ONLY:
+            mode |= FA_READ;
+            break;
+        case OS_WRITE_ONLY:
+            mode = FA_CREATE_ALWAYS | FA_WRITE;
+            break;
+        case OS_READ_WRITE:
+            mode = FA_WRITE | FA_READ;
+            break;
+        default:
+            break;
+        }
+
+        result = f_open(&impl->fp, local_path, mode);
+
+        if (result != FR_OK)
+        {
+            return OS_ERROR;
+        }
+    }
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -294,6 +327,8 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
 int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t nbytes, int32 timeout)
 {
     OS_impl_file_internal_record_t *impl;
+    FRESULT result;
+    DWORD br;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -313,7 +348,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
                 return (int32)nread;
             #else
                 size_t result = ff_fread(buffer, 1, nbytes, impl->pxFile);
-                if ( stdioGET_ERRNO( ) != pdFREERTOS_ERRNO_NONE ) 
+                if ( stdioGET_ERRNO( ) != pdFREERTOS_ERRNO_NONE )
                 {
                     OS_DEBUG("read: %s\n", strerror(stdioGET_ERRNO( )));
                     return OS_ERROR;
@@ -324,6 +359,15 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
                     return (int32)result;
                 }
             #endif
+        }
+        else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
+        {
+            result = f_read(&impl->fp, buffer, nbytes, &br);
+
+            if (result != FR_OK)
+            {
+                return OS_ERROR;
+            }
         }
         else
         {
@@ -348,7 +392,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
 int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, size_t nbytes, int32 timeout)
 {
     OS_impl_file_internal_record_t* impl;
-    
+
     UNUSED_ARGUMENT(timeout);
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
@@ -380,6 +424,29 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
         #endif
 
     }
+    else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
+    {
+        FRESULT result;
+        UINT bytes_written;
+
+        result = f_write(&impl->fp, buffer, nbytes, &bytes_written);
+
+        if (result == FR_OK)
+        {
+            if (bytes_written == nbytes)
+            {
+                return OS_SUCCESS;
+            }
+            else
+            {
+                return OS_ERR_FILE;
+            }
+        }
+        else
+        {
+            return OS_ERROR;
+        }
+    }
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -403,6 +470,9 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
 int32 OS_GenericClose_Impl(const OS_object_token_t *token)
 {
     OS_impl_file_internal_record_t *impl;
+
+    /* Chan FatFs */
+    FRESULT result;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -428,6 +498,19 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
             }
         #endif
     }
+    else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
+    {
+        result = f_close(&impl->fp);
+
+        if (result == FR_OK)
+        {
+            return OS_SUCCESS;
+        }
+        else
+        {
+            return OS_ERROR;
+        }
+    }
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -452,6 +535,9 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
 int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 whence)
 {
     OS_impl_file_internal_record_t* impl;
+
+    /* Chan FatFs */
+    FRESULT result;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -487,6 +573,19 @@ int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 w
             return OS_ERR_NOT_IMPLEMENTED;
         #endif
 
+    }
+    else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
+    {
+        result = f_lseek(&impl->fp, offset);
+
+        if (result == FR_OK)
+        {
+            return OS_SUCCESS;
+        }
+        else
+        {
+            return OS_ERROR;
+        }
     }
     else
     {
