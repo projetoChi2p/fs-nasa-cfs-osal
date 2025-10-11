@@ -58,7 +58,7 @@
 #endif
 
 /* Chan FatFS */
-#include "fatfs/ff.h"
+#include "ff.h"
 
 
 /****************************************************************************************
@@ -298,7 +298,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             break;
         }
 
-        result = f_open(&impl->fp, local_path, mode);
+        result = f_open(&impl->fp, device_path, mode);
 
         if (result != FR_OK)
         {
