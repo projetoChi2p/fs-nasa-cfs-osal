@@ -32,6 +32,11 @@ else()
     )
 endif()
 
+# Chan FatFs File System
+FILE(GLOB CHAN_FATFS
+    ${THIRDPARTY_DIR}/fs-chan-fatfs/*.c
+)
+
 include_directories(
     src
 )
@@ -89,7 +94,7 @@ FILE(GLOB VENDOR_CODE
     ../shared-freertos/vendor/*.c
     vendor/*.c
     app_helpers_board.c
-    middleware/fatfs/*.c
+    middleware/mmc_di_if.c
     middleware/vector_table.S
 )
 
@@ -105,6 +110,7 @@ add_library(osal_mpfs-discovery-freertos_impl OBJECT
     ${VENDOR_CODE}
     ${SOURCES}
     ${PLATFORM_SRC}
+    ${CHAN_FATFS}
 )
 
 set(OSAL_EXPECTED_OSTYPE "freertos" PARENT_SCOPE)

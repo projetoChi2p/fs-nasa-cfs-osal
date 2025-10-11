@@ -57,7 +57,7 @@
 #include "include/ff_headers.h"
 #endif
 
-#include "fatfs/ff.h"
+#include "ff.h"
 #include "os-impl-filesys.h"
 
 
@@ -655,8 +655,6 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
             break;
 
         case OS_FILESYS_TYPE_FS_BASED:
-            OS_DEBUG("OSAL: Starting Chan FATFS.\n");
-
             result = f_mount(0, &impl->fatfs);
 
             if (result == FR_OK)
@@ -1058,6 +1056,8 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
     int32                         return_code;
     OS_filesys_internal_record_t *filesys;
     size_t LocalPathLen;
+    size_t SysMountPointLen;
+    size_t DevicePathLen;
 
     /* Check parameters */
     OS_CHECK_PATHNAME(LocalPath);
@@ -1084,27 +1084,39 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
 
     if (return_code == OS_SUCCESS)
     {
-        size_t SysMountPointLen;
-        //size_t VirtPathLen;
         filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *FileSystem);
         SysMountPointLen = OS_strnlen(filesys->system_mountpt, sizeof(filesys->system_mountpt));
 
-        // /RAM1
-        // /RAM1/
-        // /RAM1/abc
-        if ( LocalPath[SysMountPointLen] == '\0' )
+        if (filesys->fstype == OS_FILESYS_TYPE_VOLATILE_DISK)
         {
-            DevicePath[0] = '/';
-            DevicePath[1] = '\0';
+            // /RAM1
+            // /RAM1/
+            // /RAM1/abc
+            if ( LocalPath[SysMountPointLen] == '\0' )
+            {
+                DevicePath[0] = '/';
+                DevicePath[1] = '\0';
+            }
+            else
+            {
+                // findMountPoint() checks for local path for having a delimiter '/' immeditate to mount point prefix
+                DevicePathLen = LocalPathLen - SysMountPointLen;
+
+                memcpy(DevicePath, &LocalPath[SysMountPointLen], DevicePathLen);
+                DevicePath[DevicePathLen + 2] = '\0';
+            }
+        }
+        else if (filesys->fstype == OS_FILESYS_TYPE_FS_BASED)
+        {
+            // findMountPoint() checks for local path for having a delimiter '/' immeditate to mount point prefix
+            // strcpy(DevicePath, "0:");
+            // strcat(DevicePath, filesys->system_mountpt);
+            strcpy(DevicePath, filesys->system_mountpt);
+            strcat(DevicePath, &LocalPath[SysMountPointLen]);
         }
         else
         {
-            // findMountPoint() checks for local path for having a delimiter '/' immeditate to mount point prefix
-            size_t DevicePathLen;
-            DevicePathLen = LocalPathLen - SysMountPointLen;
-
-            memcpy(DevicePath, &LocalPath[SysMountPointLen], DevicePathLen);
-            DevicePath[DevicePathLen] = '\0';
+            return_code = OS_ERR_NOT_IMPLEMENTED;
         }
 
         //OS_ObjectIdRelease(&token);
@@ -1283,7 +1295,19 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
             {
                 FileStats->FileSize = info.fsize;
                 FileStats->FileTime.ticks = info.ftime;
-                FileStats->FileModeBits = info.fattrib;
+
+                if (info.fattrib & AM_DIR)
+                {
+                    FileStats->FileModeBits |= OS_FILESTAT_MODE_DIR;
+                }
+                if (info.fattrib & AM_RDO)
+                {
+                    FileStats->FileModeBits |= OS_FILESTAT_MODE_READ;
+                }
+                if (info.fattrib & AM_ARC)
+                {
+                    FileStats->FileModeBits |= OS_FILESTAT_MODE_WRITE;
+                }
 
                 return_code = OS_SUCCESS;
             }

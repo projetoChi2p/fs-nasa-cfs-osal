@@ -41,7 +41,7 @@
 #include "include/ff_headers.h"
 #endif
 
-#include "fatfs/ff.h"
+#include "ff.h"
 
 typedef struct
 {
