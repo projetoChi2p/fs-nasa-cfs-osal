@@ -117,7 +117,7 @@ int32 OS_FreeRTOS_DirAPI_Impl_Init(void)
             OS_impl_dir_table[local_id].device = -1;
             OS_impl_dir_table[local_id].fd     = -1;
         #else
-            // no action 
+            // no action
         #endif
     }
 
@@ -143,6 +143,9 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
 
     //OS_dir_internal_record_t *     dir;
     OS_impl_dir_internal_record_t* impl;
+
+    /* Used for Chan FatFs*/
+    FRESULT result;
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
@@ -181,7 +184,7 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
     /*
      * Take action based on the type of volume
      */
-    switch(impl->fstype) 
+    switch(impl->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -215,6 +218,19 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        case OS_FILESYS_TYPE_FS_BASED:
+            result = f_opendir(&impl->dir, device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -241,21 +257,39 @@ int32 OS_DirClose_Impl(const OS_object_token_t *token)
     //dir = OS_OBJECT_TABLE_GET(OS_dir_table, *token);
     impl  = OS_OBJECT_TABLE_GET(OS_impl_dir_table, *token);
 
-    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-        int mfs_result;
-        mfs_result = mfs_dir_close(impl->device, impl->fd);
-        if ( mfs_result != MFS_SUCCESS )
-        {
-            OS_DEBUG("Failed mfs_dir_close(). Result %d.\n", mfs_result);
-            return OS_ERROR;
-        }
-    #else
+    int mfs_result;
+    switch (impl->fstype)
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+        #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+            mfs_result = mfs_dir_close(impl->device, impl->fd);
+            if (mfs_result != MFS_SUCCESS)
+            {
+                OS_DEBUG("Failed mfs_dir_close(). Result %d.\n", mfs_result);
+                return OS_ERROR;
+            }
+        #else
 
-        if ( (impl->pxFindStruct != NULL) && ( impl->flags & DIR_FLAG_IS_DYN_ALLOC) )
-        {
-            vPortFree(impl->pxFindStruct);
-        }
-    #endif
+            if ((impl->pxFindStruct != NULL) && (impl->flags & DIR_FLAG_IS_DYN_ALLOC))
+            {
+                vPortFree(impl->pxFindStruct);
+            }
+        #endif
+            break;
+        case OS_FILESYS_TYPE_FS_BASED:
+            /*
+             * No operation is required to close the directory.
+             *
+             * The version of the Chan FatFs library in use does not have an
+             * f_closedir() function. Per its design for older versions, the
+             * DIR object can be safely discarded without a closing procedure.
+            */
+
+            break;
+        default:
+            return OS_ERR_NOT_IMPLEMENTED;
+            break;
+    }
 
     /* Reset the table entry */
     memset(impl, 0, sizeof(*impl));
@@ -275,7 +309,6 @@ int32 OS_DirClose_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_DirRead_Impl(const OS_object_token_t *token, os_dirent_t *dirent)
 {
-
     //OS_dir_internal_record_t *     dir;
     OS_impl_dir_internal_record_t* impl;
 
@@ -379,6 +412,9 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
     int device;
     #endif
 
+    /* Used for Chan FatFs */
+    FRESULT result;
+
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
     OS_CHECK_STRING(local_path, sizeof(device_path), OS_FS_ERR_PATH_TOO_LONG);
@@ -432,6 +468,19 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        case OS_FILESYS_TYPE_FS_BASED:
+            result = f_mkdir(device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -462,6 +511,9 @@ int32 OS_DirRemove_Impl(const char *local_path)
     int device;
     int mfs_result;
     #endif
+
+    /* Usef for Chan FatFs*/
+    FRESULT result;
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
@@ -503,7 +555,23 @@ int32 OS_DirRemove_Impl(const char *local_path)
                 OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
                 return_code = OS_ERR_NOT_IMPLEMENTED;
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+
             return_code = OS_SUCCESS;
+
+            break;
+        case OS_FILESYS_TYPE_FS_BASED:
+            /* Removes a file or sub-directory from the volume. */
+            result = f_unlink(device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
             break;
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
