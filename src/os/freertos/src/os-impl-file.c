@@ -327,8 +327,10 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
 int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t nbytes, int32 timeout)
 {
     OS_impl_file_internal_record_t *impl;
+
+    /* Used for Chan FatFs*/
     FRESULT result;
-    DWORD br;
+    UINT br;
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -364,7 +366,20 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
         {
             result = f_read(&impl->fp, buffer, nbytes, &br);
 
-            if (result != FR_OK)
+            if (result == FR_OK)
+            {
+                /*
+                * The file read/write pointer of the file object advances number
+                * of bytes read. After the function succeeded, *br should be checked 
+                * to detect the end of file. In case of *br is less than btr, it 
+                * means the read/write pointer reached end of the file during read operation.
+                */
+                if (br < nbytes)
+                {
+                    return br;
+                }
+            }
+            else
             {
                 return OS_ERROR;
             }
