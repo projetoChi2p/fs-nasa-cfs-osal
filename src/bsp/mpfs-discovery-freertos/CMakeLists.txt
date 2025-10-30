@@ -34,7 +34,7 @@ endif()
 
 # Chan FatFs File System
 FILE(GLOB CHAN_FATFS
-    ${THIRDPARTY_DIR}/fs-chan-fatfs/*.c
+    ${OSAL_FATFS_SRC_DIR}/*.c
 )
 
 include_directories(
