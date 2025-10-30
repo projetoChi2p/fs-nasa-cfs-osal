@@ -366,9 +366,7 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
 
             return_code = OS_SUCCESS;
             break;
-
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             /* No op */
             return_code = OS_SUCCESS;
             break;
@@ -922,9 +920,8 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
             return_code = OS_SUCCESS;
             break;
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             /* Get volume information and free clusters */
-            fs_result = f_getfree("0:", &free_clusters, &fs);
+            fs_result = f_getfree(filesys->system_mountpt, &free_clusters, &fs);
 
             if (fs_result != FR_OK)
             {
@@ -937,7 +934,6 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
                 * - Sector:  The physical unit on disk.
                 * - Block:   The logical unit for this application, equal to one sector.
                 */
-
                 total_sectors = (impl->fatfs.n_fatent - 2) * fs->csize;
                 free_sectors = free_clusters * fs->csize;
 
@@ -1105,6 +1101,8 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
                 memcpy(DevicePath, &LocalPath[SysMountPointLen], DevicePathLen);
                 DevicePath[DevicePathLen + 2] = '\0';
             }
+
+            return_code = OS_SUCCESS;
         }
         else if (filesys->fstype == OS_FILESYS_TYPE_FS_BASED)
         {
@@ -1113,12 +1111,13 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
             // strcat(DevicePath, filesys->system_mountpt);
             strcpy(DevicePath, filesys->system_mountpt);
             strcat(DevicePath, &LocalPath[SysMountPointLen]);
+
+            return_code = OS_SUCCESS;
         }
         else
         {
             return_code = OS_ERR_NOT_IMPLEMENTED;
         }
-
         //OS_ObjectIdRelease(&token);
     }
     else
