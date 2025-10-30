@@ -41,7 +41,9 @@
 #include "include/ff_headers.h"
 #endif
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
 #include "ff.h"
+#endif
 
 typedef struct
 {
@@ -54,8 +56,11 @@ typedef struct
 
 #endif
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     /* Chan FatFs*/
     FIL fp;
+#endif
+
 } OS_impl_file_internal_record_t;
 
 /*

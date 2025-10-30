@@ -29,14 +29,12 @@
 #ifndef INCLUDE_OS_IMPL_FILESSYS_H_
 #define INCLUDE_OS_IMPL_FILESSYS_H_
 
-
 #include "osconfig.h"
 
-
+#include "ff.h"
 
 #define OS_FILESYS_ALLOCATION_TYPE_STATIC   1
 #define OS_FILESYS_ALLOCATION_TYPE_DYNAMIC  2
-
 
 typedef struct
 {
@@ -51,8 +49,10 @@ typedef struct
         FF_Disk_t *  allocated_disk;
     #endif
 
-    FATFS fatfs;
-    DIR dir;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        FATFS fatfs;
+        DIR dir;
+    #endif
 
 } OS_impl_filesys_internal_record_t;
 

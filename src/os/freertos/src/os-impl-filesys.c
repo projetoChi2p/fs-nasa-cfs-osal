@@ -57,7 +57,11 @@
 #include "include/ff_headers.h"
 #endif
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+/* Chan FatFs */
 #include "ff.h"
+#endif
+
 #include "os-impl-filesys.h"
 
 
@@ -594,8 +598,10 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
     OS_impl_filesys_internal_record_t * impl;
     int32                               return_code;
 
-    /* Used for Chan FatFs*/
-    FRESULT result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFs*/
+        FRESULT result;
+    #endif
 
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
@@ -651,7 +657,7 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
 
             return_code = OS_SUCCESS;
             break;
-
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             result = f_mount(0, &impl->fatfs);
 
@@ -666,6 +672,7 @@ int32 OS_FileSysMountVolume_Impl(const OS_object_token_t *token)
             }
 
             break;
+        #endif
         default:
 
             OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
@@ -711,8 +718,10 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
     OS_impl_filesys_internal_record_t* impl;
     int32                              return_code;
 
-    /* Used for Chan FatFS*/
-    FRESULT                            result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFS*/
+        FRESULT                            result;
+    #endif
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
     impl  = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
@@ -761,21 +770,22 @@ int32 OS_FileSysUnmountVolume_Impl(const OS_object_token_t *token)
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_NORMAL_DISK:
+            /* To unmount the Filesystem it need to pass NULL as a parameter to f_mount */
+            result = f_mount(0, NULL);
 
-            case OS_FILESYS_TYPE_NORMAL_DISK:
-                /* To unmount the Filesystem it need to pass NULL as a parameter to f_mount */
-                result = f_mount(0, NULL);
+            if (result != FR_OK)
+            {
+                return_code = OS_ERROR;
+            }
+            else
+            {
+                return_code = OS_SUCCESS;
+            }
 
-                if (result != FR_OK)
-                {
-                    return_code = OS_ERROR;
-                }
-                else
-                {
-                    return_code = OS_SUCCESS;
-                }
-
-            break;
+        break;
+        #endif
         default:
 
             OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
@@ -837,12 +847,14 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
     int blocks_free;
     #endif
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     /* Used for Chan FatFs */
     FATFS   *fs;
     DWORD   free_clusters;
     DWORD   free_sectors;
     DWORD   total_sectors;
     FRESULT fs_result;
+    #endif
 
     filesys = OS_OBJECT_TABLE_GET(OS_filesys_table, *token);
     impl    = OS_OBJECT_TABLE_GET(OS_impl_filesys_table, *token);
@@ -919,6 +931,7 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             /* Get volume information and free clusters */
             fs_result = f_getfree(filesys->system_mountpt, &free_clusters, &fs);
@@ -946,6 +959,7 @@ int32 OS_FileSysStatVolume_Impl(const OS_object_token_t *token, OS_statvfs_t *re
             }
 
             break;
+        #endif
         default:
 
             OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
@@ -1153,9 +1167,11 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
     FF_Stat_t xStat;
     #endif
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     /* Used for Chan FatFs */
     FILINFO info;
     FRESULT fs_result;
+    #endif
 
     return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (return_code != OS_SUCCESS)
@@ -1286,8 +1302,8 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             fs_result = f_stat(device_path, &info);
 
             if (fs_result == FR_OK)
@@ -1316,6 +1332,7 @@ int32 OS_FileStat_Impl(const char *local_path, os_fstat_t *FileStats)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -1348,8 +1365,10 @@ int32 OS_FileRemove_Impl(const char *local_path)
     int mfs_result;
     #endif
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     /* Used for Chan FatFs */
     FRESULT result;
+    #endif
 
     return_code = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (return_code != OS_SUCCESS)
@@ -1391,8 +1410,8 @@ int32 OS_FileRemove_Impl(const char *local_path)
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             result = f_unlink(device_path);
 
             if (result == FR_OK)
@@ -1405,6 +1424,7 @@ int32 OS_FileRemove_Impl(const char *local_path)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -1432,8 +1452,10 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
     OS_impl_filesys_internal_record_t *filesys_impl;
     osal_status_t return_code;
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     /* Used for Chan FatFs*/
     FRESULT fs_result;
+    #endif
 
     unsigned long old_fs_id; // see OS_ObjectIdToInteger()
     unsigned long new_fs_id; // see OS_ObjectIdToInteger()
@@ -1504,8 +1526,8 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             fs_result = f_rename(device_path_old, device_path_new);
 
             if (fs_result == FR_OK)
@@ -1518,6 +1540,7 @@ int32 OS_FileRename_Impl(const char *old_path, const char *new_path)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;

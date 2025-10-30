@@ -144,8 +144,10 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
     //OS_dir_internal_record_t *     dir;
     OS_impl_dir_internal_record_t* impl;
 
-    /* Used for Chan FatFs*/
-    FRESULT result;
+    #ifdef OS_FILESYS_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFs*/
+        FRESULT result;
+    #endif
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
@@ -218,6 +220,7 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IF_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             result = f_opendir(&impl->dir, device_path);
 
@@ -231,6 +234,7 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -412,8 +416,10 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
     int device;
     #endif
 
-    /* Used for Chan FatFs */
-    FRESULT result;
+    #ifdef OS_FILESYS_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFs */
+        FRESULT result;
+    #endif
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
@@ -468,6 +474,7 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYS_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             result = f_mkdir(device_path);
 
@@ -481,6 +488,7 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -512,8 +520,10 @@ int32 OS_DirRemove_Impl(const char *local_path)
     int mfs_result;
     #endif
 
-    /* Usef for Chan FatFs*/
-    FRESULT result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Usef for Chan FatFs*/
+        FRESULT result;
+    #endif
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
@@ -559,6 +569,7 @@ int32 OS_DirRemove_Impl(const char *local_path)
             return_code = OS_SUCCESS;
 
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             /* Removes a file or sub-directory from the volume. */
             result = f_unlink(device_path);
@@ -573,6 +584,7 @@ int32 OS_DirRemove_Impl(const char *local_path)
             }
 
             break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;

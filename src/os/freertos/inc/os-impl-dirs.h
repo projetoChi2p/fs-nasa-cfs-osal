@@ -30,7 +30,6 @@
 #define OS_IMPL_DIRS_H
 
 #include "osconfig.h"
-#include "ff.h"
 
 typedef struct
 {
@@ -44,8 +43,11 @@ typedef struct
     FF_FindData_t * pxFindStruct; // Structure supporting FreeRTOS+FAT directory browsing.
 #endif
 
+#ifdef OS_FILESYSTEM_NON_VOLATILES_IS_FATFS
     /* Used for Chan FatFs*/
     DIR dir;
+#endif
+
 } OS_impl_dir_internal_record_t;
 
 /*

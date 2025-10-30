@@ -58,7 +58,7 @@
 #endif
 
 /* Chan FatFS */
-#include "ff.h"
+// #include "ff.h"
 
 
 /****************************************************************************************
@@ -135,9 +135,11 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
     char device_path [OS_MAX_LOCAL_PATH_LEN];
     //uint8 fstype;
 
-    /* Used only for Chan FatFS */
-    BYTE mode;
-    FRESULT result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Used only for Chan FatFS */
+        BYTE mode;
+        FRESULT result;
+    #endif
 
     status = OS_FreeRTOS_TranslateLocalPath(local_path, &filesys_token, device_path);
     if (status != OS_SUCCESS)
@@ -279,6 +281,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
         #endif
 
     }
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
     {
         mode = 0;
@@ -305,6 +308,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             return OS_ERROR;
         }
     }
+    #endif /* end #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -328,9 +332,11 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
 {
     OS_impl_file_internal_record_t *impl;
 
-    /* Used for Chan FatFs*/
-    FRESULT result;
-    UINT br;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFs*/
+        FRESULT result;
+        UINT br;
+    #endif
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -362,6 +368,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
                 }
             #endif
         }
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
         {
             result = f_read(&impl->fp, buffer, nbytes, &br);
@@ -384,6 +391,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
                 return OS_ERROR;
             }
         }
+        #endif /*end #ifdef OS_FILESYS_NON_VOLATILE_IS_FATFS */
         else
         {
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
@@ -439,6 +447,7 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
         #endif
 
     }
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
     {
         FRESULT result;
@@ -462,6 +471,7 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
             return OS_ERROR;
         }
     }
+    #endif /* end #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -486,8 +496,10 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
 {
     OS_impl_file_internal_record_t *impl;
 
-    /* Chan FatFs */
-    FRESULT result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Chan FatFs */
+        FRESULT result;
+    #endif
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -513,6 +525,7 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
             }
         #endif
     }
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
     {
         result = f_close(&impl->fp);
@@ -526,6 +539,7 @@ int32 OS_GenericClose_Impl(const OS_object_token_t *token)
             return OS_ERROR;
         }
     }
+    #endif
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -551,8 +565,10 @@ int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 w
 {
     OS_impl_file_internal_record_t* impl;
 
-    /* Chan FatFs */
-    FRESULT result;
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Chan FatFs */
+        FRESULT result;
+    #endif
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
@@ -589,6 +605,7 @@ int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 w
         #endif
 
     }
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
     else if (impl->fstype == OS_FILESYS_TYPE_FS_BASED)
     {
         result = f_lseek(&impl->fp, offset);
@@ -602,6 +619,7 @@ int32 OS_GenericSeek_Impl(const OS_object_token_t *token, int32 offset, uint32 w
             return OS_ERROR;
         }
     }
+    #endif
     else
     {
         OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
