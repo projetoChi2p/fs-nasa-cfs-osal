@@ -308,7 +308,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
             return OS_ERROR;
         }
     }
-    #endif /* end #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
+    #endif /* end OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");
@@ -328,7 +328,7 @@ int32 OS_FileOpen_Impl(const OS_object_token_t *token, const char *local_path, i
  *           See prototype for argument/return detail
  *
  *-----------------------------------------------------------------*/
-int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t nbytes, int32 timeout)
+int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t nbytes, OS_time_t abs_timeout)
 {
     OS_impl_file_internal_record_t *impl;
 
@@ -340,10 +340,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 
-    if (timeout != OS_PEND) {
-        OS_DEBUG("read: timed read not supported.\n");
-        return OS_ERR_NOT_IMPLEMENTED;
-    }
+    UNUSED_ARGUMENT(abs_timeout);
 
     if (nbytes > 0)
     {
@@ -377,8 +374,8 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
             {
                 /*
                 * The file read/write pointer of the file object advances number
-                * of bytes read. After the function succeeded, *br should be checked 
-                * to detect the end of file. In case of *br is less than btr, it 
+                * of bytes read. After the function succeeded, *br should be checked
+                * to detect the end of file. In case of *br is less than btr, it
                 * means the read/write pointer reached end of the file during read operation.
                 */
                 if (br < nbytes)
@@ -391,7 +388,7 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
                 return OS_ERROR;
             }
         }
-        #endif /*end #ifdef OS_FILESYS_NON_VOLATILE_IS_FATFS */
+        #endif /*end OS_FILESYS_NON_VOLATILE_IS_FATFS */
         else
         {
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
@@ -412,11 +409,11 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
  *           See prototype for argument/return detail
  *
  *-----------------------------------------------------------------*/
-int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, size_t nbytes, int32 timeout)
+int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, size_t nbytes, OS_time_t abs_timeout)
 {
     OS_impl_file_internal_record_t* impl;
 
-    UNUSED_ARGUMENT(timeout);
+    UNUSED_ARGUMENT(abs_timeout);
 
     impl = OS_OBJECT_TABLE_GET(OS_impl_filehandle_table, *token);
 

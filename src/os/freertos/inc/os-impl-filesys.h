@@ -31,7 +31,11 @@
 
 #include "osconfig.h"
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+
 #include "ff.h"
+
+#endif
 
 #define OS_FILESYS_ALLOCATION_TYPE_STATIC   1
 #define OS_FILESYS_ALLOCATION_TYPE_DYNAMIC  2

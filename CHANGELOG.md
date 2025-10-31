@@ -1,5 +1,73 @@
 # Changelog
 
+## Development Build: equuleus-rc1+dev123
+- 'Fix #1445, add conditional around priority sem test'
+- See: <https://github.com/nasa/osal/pull/1509>
+
+
+## Development Build: equuleus-rc1+dev117
+- 'Fix nasa/cFS#839, Update Workflows to Ubuntu 22.04'
+- See: <https://github.com/nasa/osal/pull/1506>
+
+
+## Development Build: equuleus-rc1+dev113
+- 'Fix #1496, Update malloc stub'
+- See: <https://github.com/nasa/osal/pull/1497>
+
+
+## Development Build: equuleus-rc1+dev101
+- Update Select functions params
+- update ut_oscore_test.c
+- Update timer interval comparison
+- Update stack sizes for test tasks
+- See <https://github.com/nasa/osal/pull/1495>, <https://github.com/nasa/osal/pull/1499>, <https://github.com/nasa/osal/pull/1504>, and <https://github.com/nasa/osal/pull/1502>
+
+## Development Build: equuleus-rc1+dev97
+- Correct README.md OSAL User's Guide links
+- See <https://github.com/nasa/osal/pull/1493>
+
+## Development Build: equuleus-rc1+dev93
+- Adding a strstr() check
+- See <https://github.com/nasa/osal/pull/1486>
+
+## Development Build: equuleus-rc1+dev89
+- Update misnamed member variable in OS_BSP_GlobalData_t
+- See <https://github.com/nasa/osal/pull/1416>
+
+## Development Build: equuleus-rc1+dev85
+- Fix workflow bug and enforce updating of coverage minimums
+- See <https://github.com/nasa/osal/pull/1419>
+
+## Development Build: equuleus-rc1+dev81
+- Fix Address Sanitizer issue in vxworks-console-testrunner
+- f-sanitizer issue in coverage-shared-idma
+- See <https://github.com/nasa/osal/pull/1467> and <https://github.com/nasa/osal/pull/1470>
+
+## Development Build: equuleus-rc1+dev73
+- High-res timed stream ops
+- Moves OS_strnlen to public API and adds static analysis comments
+- See <https://github.com/nasa/osal/pull/1456> and <https://github.com/nasa/osal/pull/1465>
+
+## Development Build: equuleus-rc1+dev66
+- Adds node20 compatible github actions
+- See <https://github.com/nasa/osal/pull/1460>
+
+## Development Build: equuleus-rc1+dev62
+- Break up pc-rtems to support generic configuration and add tarfs support
+- See <https://github.com/nasa/osal/pull/1350>
+
+## Development Build: equuleus-rc1:dev58
+- POSIX implementation honors stack pointer
+- See <https://github.com/nasa/osal/pull/1450>
+
+## Development Build: equuleus-rc1+dev53
+- use virtual path as name for FS_BASED maps
+- Remove softsleep, as a dead store.
+- Remove stray remaining 'goto' in OSAL test code
+- Align mismatched function prototype/implem. parameter names
+- Move variables declared mid-function to the top
+- See <https://github.com/nasa/osal/pull/1448>, <https://github.com/nasa/osal/issues/1452>, <https://github.com/nasa/osal/pull/1357>, <https://github.com/nasa/osal/pull/1354>, and <https://github.com/nasa/osal/pull/1331>
+
 ## Development Build: equuleus-rc1+dev41
 - Remove unreachable branch (superfluous if condition)
 - See <https://github.com/nasa/osal/pull/1368>
