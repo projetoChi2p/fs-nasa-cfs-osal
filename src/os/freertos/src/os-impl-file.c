@@ -24,6 +24,7 @@
  * \author   joseph.p.hickey@nasa.gov
  * \author   Patrick Paul (https://github.com/pztrick)
  * \author   Fabio Benevenuti (UFRGS)
+ * \author   Luis Franca      (UFRGS)
  *
  */
 
@@ -373,22 +374,17 @@ int32 OS_GenericRead_Impl(const OS_object_token_t *token, void *buffer, size_t n
             if (result == FR_OK)
             {
                 /*
-                * The file read/write pointer of the file object advances number
-                * of bytes read. After the function succeeded, *br should be checked
-                * to detect the end of file. In case of *br is less than btr, it
-                * means the read/write pointer reached end of the file during read operation.
+                ** In case of *br is less than btr, it means the read/write
+                ** pointer reached end of the file during read operation.
                 */
-                if (br < nbytes)
-                {
-                    return br;
-                }
+                return (int32)br;
             }
             else
             {
                 return OS_ERROR;
             }
         }
-        #endif /*end OS_FILESYS_NON_VOLATILE_IS_FATFS */
+        #endif /*end OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
         else
         {
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
@@ -468,7 +464,7 @@ int32 OS_GenericWrite_Impl(const OS_object_token_t *token, const void *buffer, s
             return OS_ERROR;
         }
     }
-    #endif /* end #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
+    #endif /* end OS_FILESYSTEM_NON_VOLATILE_IS_FATFS */
     else
     {
         OS_DebugPrintf(1, __func__, __LINE__, "OS_ERR_NOT_IMPLEMENTED \n");

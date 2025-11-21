@@ -33,6 +33,7 @@
  * \author   joseph.p.hickey@nasa.gov
  * \author   Patrick Paul (https://github.com/pztrick)
  * \author   Fabio Benevenuti (UFRGS)
+ * \author   Luis Franca      (UFRGS)
  */
 
 #include <string.h>
@@ -247,11 +248,12 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
             return_code = OS_SUCCESS;
             break;
 
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
-        case OS_FILESYS_TYPE_NORMAL_DISK:
             /* No op */
             return_code = OS_SUCCESS;
             break;
+        #endif
         default:
 
             OS_DEBUG("v:%s d:%s m:%s v:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
@@ -295,7 +297,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
             filesys->system_mountpt[0] = '/';
             strncpy(&filesys->system_mountpt[1], filesys->volume_name, sizeof(filesys->system_mountpt) - 2);
             filesys->system_mountpt[sizeof(filesys->system_mountpt) - 1] = 0;
-            OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name);
+            /* OS_DEBUG("OSAL: using mount point %s for volume %s\n", filesys->system_mountpt, filesys->volume_name); */
         }
     }
 
@@ -370,10 +372,12 @@ int32 OS_FileSysStopVolume_Impl(const OS_object_token_t *token)
 
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             /* No op */
             return_code = OS_SUCCESS;
             break;
+        #endif
         default:
 
             OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
@@ -540,10 +544,12 @@ int32 OS_FileSysFormatVolume_Impl(const OS_object_token_t *token)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
 
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
         case OS_FILESYS_TYPE_FS_BASED:
             /* No op */
             return_code = OS_SUCCESS;
             break;
+        #endif
         default:
 
             OS_DEBUG("vol:%s d:%s m:%s vm:%s a:%p bs:%lu blks:%lu flags:%lx t:%lx (%s)\n",
