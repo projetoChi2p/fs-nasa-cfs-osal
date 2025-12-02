@@ -31,6 +31,13 @@
 
 #include "osconfig.h"
 
+
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+
+#include "ff.h"
+
+#endif
+
 typedef struct
 {
     uint8_t         fstype;
@@ -42,6 +49,12 @@ typedef struct
     uint8_t         flags;
     FF_FindData_t * pxFindStruct; // Structure supporting FreeRTOS+FAT directory browsing.
 #endif
+
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+    /* Used for Chan FatFs*/
+    DIR dir;
+#endif
+
 } OS_impl_dir_internal_record_t;
 
 /*

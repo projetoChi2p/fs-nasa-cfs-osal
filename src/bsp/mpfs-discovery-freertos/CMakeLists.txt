@@ -17,7 +17,6 @@ FILE(GLOB FREERTOS_PORTABLE_SOURCES
     ${OSAL_FREERTOS_SRC_DIR}/portable/MemMang/heap_4.c
 )
 
-
 if(OSAL_RAMDISK_FILESYSTEM_IS_MFS)
     message("*** Using OSAL_XILINX_MFS_SRC_DIR '${OSAL_XILINX_MFS_SRC_DIR}'.")
     # Xilinx Memory Filesystem
@@ -33,6 +32,10 @@ else()
     )
 endif()
 
+# Chan FatFs File System
+FILE(GLOB CHAN_FATFS
+    ${OSAL_FATFS_SRC_DIR}/*.c
+)
 
 include_directories(
     src
@@ -43,10 +46,39 @@ include_directories(
     vendor
 )
 
+# Define drivers used by the application
+set(CONFIG_MSS_MMUART   TRUE)
+set(CONFIG_MSS_GPIO     TRUE)
+set(CONFIG_MSS_MMC      TRUE)
+set(CONFIG_MSS_RTC      TRUE)
+set(CONFIG_MSS_WATCHDOG TRUE)
+
+add_subdirectory(platform)
+
+# The 'src/platform' subdirectory defines variables in its own scope.
+# Pull them here to make them visible to the main project.
+get_directory_property(PLATFORM_SRC_FROM_SUBDIR
+    DIRECTORY platform
+    DEFINITION PLATFORM_SRC
+)
+
+get_directory_property(PLATFORM_HEADERS_FROM_SUBDIR
+    DIRECTORY platform
+    DEFINITION PLATFORM_HEADERS
+)
+
+get_directory_property(LIB_MSS_HEADERS_FROM_SUBDIR
+    DIRECTORY platform
+    DEFINITION LIB_MSS_HEADERS
+)
+
+set(PLATFORM_SRC ${PLATFORM_SRC_FROM_SUBDIR})
+set(PLATFORM_HEADERS ${PLATFORM_HEADERS_FROM_SUBDIR})
+set(LIB_MSS_HEADERS ${LIB_MSS_HEADERS_FROM_SUBDIR})
+
 include_directories(
-    polarfire_hal/platform
-    polarfire_hal/boards/mpfs-discovery-kit/
-    polarfire_hal/boards/mpfs-discovery-kit/platform_config/lim-release
+    ${PLATFORM_HEADERS}
+    ${LIB_MSS_HEADERS}
 
     ${OSAL_FREERTOS_SRC_DIR}/portable/GCC/RISC-V
     ${OSAL_FREERTOS_SRC_DIR}/portable/GCC/RISC-V/chip_specific_extensions/RISCV_MTIME_CLINT_no_extensions
@@ -61,18 +93,9 @@ include_directories(
 FILE(GLOB VENDOR_CODE
     ../shared-freertos/vendor/*.c
     vendor/*.c
-    polarfire_hal/platform/mpfs_hal/startup_gcc/*.c
-    polarfire_hal/platform/mpfs_hal/startup_gcc/*.S
-    polarfire_hal/platform/mpfs_hal/startup_gcc/*.c
-    polarfire_hal/platform/mpfs_hal/common/*.c
-    polarfire_hal/platform/mpfs_hal/common/nwc/*.c
-    polarfire_hal/platform/hal/*.c
-    polarfire_hal/platform/hal/*.S
-    polarfire_hal/platform/drivers/mss/mss_mmuart/*.c
-    polarfire_hal/platform/drivers/mss/mss_gpio/*.c
-    polarfire_hal/platform/drivers/mss/mss_rtc/*.c
-    vector_table.S
     app_helpers_board.c
+    middleware/mmc_di_if.c
+    middleware/vector_table.S
 )
 
 FILE(GLOB SOURCES
@@ -80,13 +103,14 @@ FILE(GLOB SOURCES
     ../shared-freertos/src/bsp_console.c
 )
 
-
 add_library(osal_mpfs-discovery-freertos_impl OBJECT
     ${FREERTOS_SOURCES}
     ${FREERTOS_PORTABLE_SOURCES}
     ${FILESYSTEM_SOURCES}
     ${VENDOR_CODE}
     ${SOURCES}
+    ${PLATFORM_SRC}
+    ${CHAN_FATFS}
 )
 
 set(OSAL_EXPECTED_OSTYPE "freertos" PARENT_SCOPE)

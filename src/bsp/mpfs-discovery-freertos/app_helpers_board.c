@@ -22,7 +22,7 @@
 #include "drivers/mss/mss_rtc/mss_rtc.h"
 
 
-/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
+/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we
  * are allocating explicitly to enforce alignment or to put it inside
  * arbitraty memory region, e.g. MPFS MSS scratchpad.
  */
@@ -33,9 +33,6 @@
 uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 #endif
 
-
-
-extern int main(void);
 extern void freertos_risc_v_trap_handler( void );
 extern void freertos_vector_table( void );
 
@@ -51,10 +48,7 @@ void u54_1(void) {
 }
 #endif
 
-
-
-
-void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size ) 
+void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 {
     MSS_UART_polled_tx(&g_mss_uart4_lo, data, size);
 }
@@ -69,6 +63,9 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 #define DELAY_CYCLES_500_MICRO         ((uint32_t)(DELAY_CYCLES_500_NS * 1000U))
 #define DELAY_CYCLES_2MS               ((uint32_t)(DELAY_CYCLES_500_NS * 4000U))
 #define DELAY_CYCLES_100MS             ((uint32_t)(DELAY_CYCLES_2MS * 50U))
+
+#define LIM_BASE_ADDRESS 0x08000000u
+#define LIM_SIZE 0x200000u
 
 
 #define rdcycle() read_csr(cycle)
@@ -99,7 +96,7 @@ static inline void minidelay(uint32_t n)
 }
 
 /*
-    * Redefinition of the "weak" function defined in: 
+    * Redefinition of the "weak" function defined in:
     * fs-nasa-cfs-mission-v0/third-party/freertos-v10.5.1-gcc-riscv/portable/GCC/RISC-V/portASM.S".
     * The only diference it is that now handles external interruptions.
 */
@@ -118,7 +115,7 @@ void freertos_risc_v_application_interrupt_handler(void) {
 
 
 /*
-    * The Interruption Sub-Routine that performs the FI.
+    * The Interruption Sub-Routine that performs the Fault Injection.
 */
 void FI_ISR(mss_uart_instance_t *this_uart)  {
     uint8_t     rx_buff [14];
@@ -132,19 +129,22 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
     [10 .. 13] = Not Used
     */
 
-    MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
+    // MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
 
-    memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
-    memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
+    // memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
+    // memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
 
     // Cast fi_addr to a pointer and flip the specified bit
-    uint32_t *injection_address = (uint32_t *)FI_addr;
-    *injection_address ^= (1U << FI_btf);
+    // uint32_t *injection_address = (uint32_t *)FI_addr;
+    // *injection_address ^= (1U << FI_btf);
+
+    HLP_vConsolePrintFormattedBaremetal("Reseting\r\n");
+    HLP_vSystemRestart();
 }
 
 
 /*
-    * Enables Fault Injection Mode, where it is set a 
+    * Enables Fault Injection Mode, where it is set a
     * Interrutption Routine in the UART1 port.
     * It is expected a 14 byte array containing information
     * to perform the injection, described as:
@@ -154,7 +154,6 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
     *   [10 .. 13]  = Not Used
 */
 void setup_FI_ISR() {
-    PLIC_init();
 
     (void)mss_config_clk_rst(MSS_PERIPH_MMUART1, (uint8_t)MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
 
@@ -181,9 +180,7 @@ void HLP_vPrintChar(char c, int8_t out) {
     MSS_UART_polled_tx(&g_mss_uart4_lo, (uint8_t*)trace_task_tag, 3);
 }
 
-
-// called from ../osal/src/bsp/generic-freetos/src/bsp_start.c
-void HLP_vSystemConfig(void) 
+void HLP_vSystemConfig(void)
 {
 
     /**************************************************************
@@ -202,6 +199,7 @@ void HLP_vSystemConfig(void)
     (void)mss_config_clk_rst(MSS_PERIPH_GPIO2,   (uint8_t) MPFS_HAL_FIRST_HART, PERIPHERAL_ON);
     (void)mss_config_clk_rst(MSS_PERIPH_MMUART4, (uint8_t) MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
     (void)mss_config_clk_rst(MSS_PERIPH_CFM,     (uint8_t) MPFS_HAL_FIRST_HART, PERIPHERAL_ON);
+    (void)mss_config_clk_rst(MSS_PERIPH_EMMC,    (uint8_t) MPFS_HAL_FIRST_HART,  PERIPHERAL_ON);
 
     MSS_UART_init( &( g_mss_uart4_lo ),
                    MSS_UART_115200_BAUD /* MSS_UART_921600_BAUD MSS_UART_115200_BAUD */,
@@ -211,16 +209,29 @@ void HLP_vSystemConfig(void)
     MSS_GPIO_config(GPIO1_LO, MSS_GPIO_9, MSS_GPIO_OUTPUT_MODE);
     MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 0);
 
+    PLIC_init();
+
+    PLIC_EnableIRQ(MMC_main_PLIC);
+    PLIC_EnableIRQ(MMC_wakeup_PLIC);
+
+    __enable_irq();
+
+    /* DMA init for MMC */
+    MSS_MPU_configure(
+        MSS_MPU_MMC, MSS_MPU_PMP_REGION3, LIM_BASE_ADDRESS, LIM_SIZE,
+        MPU_MODE_READ_ACCESS | MPU_MODE_WRITE_ACCESS | MPU_MODE_EXEC_ACCESS,
+        MSS_MPU_AM_NAPOT, 0u);
+
     // Just some blinking for visually observing a reboot
-    for (int i=0; i<3; i++)
+    for (int i = 0; i < 3; i++)
     {
         MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 0);
-        for (int s=0; s<1; s++){
+        for (int s = 0; s < 1; s++){
             minidelay(DELAY_CYCLES_100MS);
         }
 
         MSS_GPIO_set_output(GPIO1_LO, MSS_GPIO_9, 1);
-        for (int s=0; s<1; s++){
+        for (int s = 0; s < 1; s++){
             minidelay(DELAY_CYCLES_100MS);
         }
     }
@@ -245,7 +256,7 @@ void HLP_vSystemConfig(void)
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Executing at hart (ID): %d\r\n", __func__, __LINE__, (int)hartid);
 
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Size of char:%d short:%d int:%d long:%d long long:%d float:%d double:%d char*:%d void*:%d\r\n",
-        __func__, __LINE__, 
+        __func__, __LINE__,
         sizeof(char),
         sizeof(short),
         sizeof(int),
@@ -257,12 +268,12 @@ void HLP_vSystemConfig(void)
         sizeof(void*)
     );
 
-    if (HLP_bIsBigEndian()) 
+    if (HLP_bIsBigEndian())
     {
 
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: CPU is big endian.\r\n", __func__, __LINE__);
     }
-    else 
+    else
     {
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: CPU is little endian.\r\n", __func__, __LINE__);
     }
@@ -274,13 +285,13 @@ void HLP_vSystemConfig(void)
    /*
     * Change the RTC clock divisor, so RTC clock is 1MHz
     */
-    //set_RTC_divisor();
+    // set_RTC_divisor();
     uint64_t cr = SYSREG->RTC_CLOCK_CR;
     uint64_t div = cr & ~(0x01U<<16);
     uint64_t rtcclk = LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK / div;
 
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: PolarFire SoC REFCLK:%lu RTCCLK:%lu CR:%lx div:%lu rtc:%lu\r\n",
-        __func__, __LINE__, 
+        __func__, __LINE__,
         LIBERO_SETTING_MSS_EXT_SGMII_REF_CLK,
         LIBERO_SETTING_MSS_RTC_TOGGLE_CLK,
         cr,
@@ -290,7 +301,7 @@ void HLP_vSystemConfig(void)
 
     if ((LIBERO_SETTING_DDRPHY_MODE & DDRPHY_MODE_MASK) != DDR_OFF_MODE) {
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: Libero/PFSoC Configurator DDR address: 0x%08lx - 0x%08lx size: 0x%08lx\r\n",
-            __func__, __LINE__, 
+            __func__, __LINE__,
             LIBERO_SETTING_DDR_32_CACHE,
             LIBERO_SETTING_DDR_32_CACHE + LIBERO_SETTING_DDR_32_CACHE_SIZE - 1,
             LIBERO_SETTING_DDR_32_CACHE_SIZE
@@ -322,6 +333,40 @@ void HLP_vSystemConfig(void)
 
 }
 
+void HLP_vSystemRestart(void) {
+    SYSREG->MSS_RESET_CR = 0xDEAD;
+}
+
+uint32_t HLP_uGetResetType(void) {
+    uint32_t reset_type;
+    uint32_t reset_register;
+
+    /* Read the Reset Status Register */
+    reset_register = SYSREG->RESET_SR;
+    SYSREG->RESET_SR = 0;
+
+    if (reset_register & RESET_SR_SCB_PERIPH_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_POWERON;
+    }
+    else if (reset_register & RESET_SR_FABRIC_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_EXTERNAL;
+    }
+    else if (reset_register & RESET_SR_WDOG_RESET_MASK)
+    {
+        reset_type = RESET_TYPE_WATCHDOG;
+    }
+    else if (reset_register & (0x01 << 0x8))
+    {
+        reset_type = RESET_TYPE_SOFTWARE;
+    }
+    else
+    {
+        reset_type = RESET_TYPE_POWERON;
+    }
+}
+
 
 /********************************************************************************
  The system calls placeholder functions bellow are based on auto-generated
@@ -341,7 +386,7 @@ int __io_putchar(int ch) {
     uint8_t u8 = ch;
 
     MSS_UART_polled_tx(&g_mss_uart4_lo, &u8, 1);
-    
+
     return ch;
 }
 

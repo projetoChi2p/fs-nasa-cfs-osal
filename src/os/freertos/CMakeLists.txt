@@ -15,6 +15,7 @@ set(FREERTOS_BASE_SOURCES
     src/os-impl-file.c
     src/os-impl-filesys.c
     src/os-impl-clock.c
+    src/os-impl-heap.c
 )
 
 #if(NOT DEFINED CUSTOM_FREERTOS_FILESYSTEM)
@@ -24,7 +25,6 @@ set(FREERTOS_BASE_SOURCES
 set(FREERTOS_TODO_SOURCES
     todo/os-impl-module.c
     todo/os-impl-network.c
-    todo/os-impl-heap.c
     todo/os-impl-sockets.c
 )
 

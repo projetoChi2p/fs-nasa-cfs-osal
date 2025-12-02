@@ -41,6 +41,10 @@
 #include "include/ff_headers.h"
 #endif
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+#include "ff.h"
+#endif
+
 typedef struct
 {
     uint8_t fstype;
@@ -49,7 +53,14 @@ typedef struct
     int fd;     // Xilinx MFS directory fd
 #else
     FF_FILE *pxFile; // FreeRTOS+FAT File handle
+
 #endif
+
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+    /* Chan FatFs*/
+    FIL fp;
+#endif
+
 } OS_impl_file_internal_record_t;
 
 /*

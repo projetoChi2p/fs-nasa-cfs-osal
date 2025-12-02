@@ -235,7 +235,7 @@ UART_HandleTypeDef* g_phStm32UartConsole;
 /*****************************************************
  */
 void MX_USART_UART2_Init(void) {
-    
+
     g_stm32_uart2.Instance = USART2;
     g_stm32_uart2.Init.BaudRate = UART2_BAUDRATE;
     g_stm32_uart2.Init.WordLength = UART_WORDLENGTH_8B;
@@ -284,7 +284,7 @@ void UART2_GPIO_Init(void) {
 /*****************************************************
  */
 void MX_USART_UART3_Init(void) {
-    
+
     memset(&g_stm32_uart3, 0, sizeof(g_stm32_uart3));
 
     g_stm32_uart3.Instance = USART3;
@@ -458,7 +458,7 @@ static void MPU_Config(void)
     /* Configure the MPU attributes as WT for SRAM */
     MPU_InitStruct.Enable = MPU_REGION_ENABLE;
     //MPU_InitStruct.BaseAddress = 0x20010000; // skip 64 kB DTCM
-    MPU_InitStruct.BaseAddress = 0x20020000; // skip 128 kB DTCM 
+    MPU_InitStruct.BaseAddress = 0x20020000; // skip 128 kB DTCM
     MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
     MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
     MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
@@ -582,7 +582,7 @@ void SystemClock_Config(void) {
 
 
 // called from .../osal/src/bsp/generic-freertos/src/bsp_start.c
-void HLP_vSystemConfig(void) 
+void HLP_vSystemConfig(void)
 {
     __disable_irq();
 
@@ -633,11 +633,11 @@ void HLP_vSystemConfig(void)
 
     HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_SYSCONF2, sizeof(BOARD_SYSCONF2));
 
-    if (HLP_bIsBigEndian()) 
+    if (HLP_bIsBigEndian())
     {
         HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_BE, sizeof(BOARD_BE));
     }
-    else 
+    else
     {
         HLP_vConsolePrintBytesBaremetal((uint8_t*)BOARD_LE, sizeof(BOARD_LE));
     }
@@ -648,6 +648,37 @@ void HLP_vSystemConfig(void)
     #endif
 
 }
+
+/*****************************************************
+ */
+void HLP_vSystemRestart(void) {
+    /* Request a reset from software for ARM Cortex M7*/
+    /*  See https://community.freescale.com/thread/99740
+        To write to this register, you must write 0x5FA to the VECTKEY field, otherwise the processor ignores the write.
+        SYSRESETREQ will cause a system reset asynchronously, so need to wait afterwards.
+    */
+    /* Ensure all memory operations are complete before reset */
+    __DSB();
+
+    /* Write the reset value to the AIRCR register with the required key */
+    SCB->AIRCR = (0x5FA << SCB_AIRCR_VECTKEY_Pos) |         /*!< SCB AIRCR: VECTKEY Position */
+                 (SCB->AIRCR & SCB_AIRCR_PRIGROUP_Msk) |    /*!< Preserve priority group */
+                 SCB_AIRCR_SYSRESETREQ_Msk;                 /*!< SCB AIRCR: SYSRESETREQ Mask */
+
+    __DSB();
+    for (;;) {
+        /* wait until reset*/
+    }
+}
+
+uint32_t HLP_uGetResetType(void) {
+    uint32_t reset_type;
+
+    reset_type = RESET_TYPE_POWERON;
+
+    return reset_type;
+}
+
 
 
 /*****************************************************
@@ -667,7 +698,7 @@ void HLP_vPrintChar(char c, int8_t out){
     HLP_vConsolePrintBytesBaremetal((uint8_t*)trace_task_tag, 3);
 }
 
-/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we 
+/* FBV 2024-11-27 This is the FreeRTOS heap for head_4.c policy we
  * are allocating explicitly to enforce alignment or to put it inside
  * arbitraty memory region.
  */

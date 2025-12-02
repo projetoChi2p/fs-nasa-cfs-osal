@@ -29,17 +29,22 @@
 #ifndef INCLUDE_OS_IMPL_FILESSYS_H_
 #define INCLUDE_OS_IMPL_FILESSYS_H_
 
-
 #include "osconfig.h"
 
+#ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
 
+#include "ff.h"
+
+#endif
 
 #define OS_FILESYS_ALLOCATION_TYPE_STATIC   1
 #define OS_FILESYS_ALLOCATION_TYPE_DYNAMIC  2
 
-
 typedef struct
 {
+    /* Used to know if the allocation of the File System space is given by the application
+     *   or it needs to be allocated.
+    */
     int  fs_alloc_type;
 
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -48,6 +53,10 @@ typedef struct
         FF_Disk_t *  allocated_disk;
     #endif
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        FATFS fatfs;
+        DIR dir;
+    #endif
 
 } OS_impl_filesys_internal_record_t;
 

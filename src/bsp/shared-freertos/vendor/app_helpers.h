@@ -8,7 +8,7 @@
 
 #ifdef __cplusplus
  extern "C" {
-#endif 
+#endif
 
 
 
@@ -58,7 +58,7 @@
 #define HLP_BUILD_MAY_INLINE 1
 #endif
 
-//__OPTIMIZE__ is defined in all optimizing compilations. 
+//__OPTIMIZE__ is defined in all optimizing compilations.
 //__OPTIMIZE_SIZE__ is defined if the compiler is optimizing for size, not speed.
 #ifdef __OPTIMIZE__
 
@@ -81,8 +81,16 @@
 
 #define UNUSED_ARGUMENT(x) (void)(x)
 
+#define RESET_TYPE_POWERON  1
+#define RESET_TYPE_WATCHDOG 2
+#define RESET_TYPE_SOFTWARE 3
+#define RESET_TYPE_EXTERNAL 4
+#define RESET_TYPE_DEBUG    5
+
 
 void HLP_vSystemConfig(void);
+void HLP_vSystemRestart(void);
+uint32_t HLP_uGetResetType(void);
 void HLP_vRtosBringUp(void);
 void HLP_vBaremetalBringUp(void);
 

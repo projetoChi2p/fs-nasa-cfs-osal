@@ -32,6 +32,7 @@
  * \author   joseph.p.hickey@nasa.gov
  * \author   Patrick Paul
  * \author   Fabio Benevenuti
+ * \author   Luis Franca
  */
 
 
@@ -117,7 +118,7 @@ int32 OS_FreeRTOS_DirAPI_Impl_Init(void)
             OS_impl_dir_table[local_id].device = -1;
             OS_impl_dir_table[local_id].fd     = -1;
         #else
-            // no action 
+            // no action
         #endif
     }
 
@@ -181,7 +182,7 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
     /*
      * Take action based on the type of volume
      */
-    switch(impl->fstype) 
+    switch(impl->fstype)
     {
         case OS_FILESYS_TYPE_VOLATILE_DISK:
             #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
@@ -215,6 +216,25 @@ int32 OS_DirOpen_Impl(const OS_object_token_t *token, const char *local_path)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_FS_BASED:
+        {
+            FRESULT result;
+
+            result = f_opendir(&impl->dir, device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
+        }
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -241,21 +261,41 @@ int32 OS_DirClose_Impl(const OS_object_token_t *token)
     //dir = OS_OBJECT_TABLE_GET(OS_dir_table, *token);
     impl  = OS_OBJECT_TABLE_GET(OS_impl_dir_table, *token);
 
-    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-        int mfs_result;
-        mfs_result = mfs_dir_close(impl->device, impl->fd);
-        if ( mfs_result != MFS_SUCCESS )
-        {
-            OS_DEBUG("Failed mfs_dir_close(). Result %d.\n", mfs_result);
-            return OS_ERROR;
-        }
-    #else
+    int mfs_result;
+    switch (impl->fstype)
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
+        #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+            mfs_result = mfs_dir_close(impl->device, impl->fd);
+            if (mfs_result != MFS_SUCCESS)
+            {
+                OS_DEBUG("Failed mfs_dir_close(). Result %d.\n", mfs_result);
+                return OS_ERROR;
+            }
+        #else
 
-        if ( (impl->pxFindStruct != NULL) && ( impl->flags & DIR_FLAG_IS_DYN_ALLOC) )
-        {
-            vPortFree(impl->pxFindStruct);
-        }
-    #endif
+            if ((impl->pxFindStruct != NULL) && (impl->flags & DIR_FLAG_IS_DYN_ALLOC))
+            {
+                vPortFree(impl->pxFindStruct);
+            }
+        #endif
+            break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_FS_BASED:
+            /*
+             * No operation is required to close the directory.
+             *
+             * The version of the Chan FatFs library in use does not have an
+             * f_closedir() function. Per its design for older versions, the
+             * DIR object can be safely discarded without a closing procedure.
+            */
+
+            break;
+        #endif
+        default:
+            return OS_ERR_NOT_IMPLEMENTED;
+            break;
+    }
 
     /* Reset the table entry */
     memset(impl, 0, sizeof(*impl));
@@ -275,50 +315,97 @@ int32 OS_DirClose_Impl(const OS_object_token_t *token)
  *-----------------------------------------------------------------*/
 int32 OS_DirRead_Impl(const OS_object_token_t *token, os_dirent_t *dirent)
 {
-
-    //OS_dir_internal_record_t *     dir;
+    // OS_dir_internal_record_t *     dir;
     OS_impl_dir_internal_record_t* impl;
+    osal_status_t return_code;
 
-    //dir = OS_OBJECT_TABLE_GET(OS_dir_table, *token);
+    // dir = OS_OBJECT_TABLE_GET(OS_dir_table, *token);
     impl  = OS_OBJECT_TABLE_GET(OS_impl_dir_table, *token);
 
-    #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
-        int mfs_result;
-        int filesize_UNUSED;
-        int filetype_UNUSED;
-        char *filename;
-        mfs_result = mfs_dir_read(impl->device, impl->fd, &filename, &filesize_UNUSED, &filetype_UNUSED);
-        if ( mfs_result != MFS_SUCCESS )
+    switch (impl->fstype)
+    {
+        case OS_FILESYS_TYPE_VOLATILE_DISK:
         {
-            // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
-            return OS_ERROR;
-        }
-        strncpy(dirent->FileName, filename, sizeof(dirent->FileName) - 1 );
-        dirent->FileName[ sizeof(dirent->FileName) - 1 ] = 0;
-    #else
-        if ( impl->flags & DIR_FLAG_GOT_FIRST )
-        {
-            if ( ff_findnext( impl->pxFindStruct ) != FF_ERR_NONE )
-            {
-                // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
-                return OS_ERROR;
-            }
-        }
-        else
-        {
-            impl->flags |= DIR_FLAG_GOT_FIRST;
-            if ( ff_findfirst( impl->device_path, impl->pxFindStruct ) != FF_ERR_NONE )
-            {
-                // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
-                return OS_ERROR;
-            }
-        }
-        strncpy(dirent->FileName, impl->pxFindStruct->pcFileName, sizeof(dirent->FileName) - 1 );
-        dirent->FileName[ sizeof(dirent->FileName) - 1 ] = 0;
-    #endif
+            #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
+                int mfs_result;
+                int filesize_UNUSED;
+                int filetype_UNUSED;
+                char *filename;
 
-    return OS_SUCCESS;
-} /* end OS_DirRead_Impl */
+                mfs_result = mfs_dir_read(impl->device, impl->fd, &filename, &filesize_UNUSED, &filetype_UNUSED);
+
+                if ( mfs_result != MFS_SUCCESS )
+                {
+                    // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
+                    return OS_ERROR;
+                }
+                strncpy(dirent->FileName, filename, sizeof(dirent->FileName) - 0 );
+                dirent->FileName[ sizeof(dirent->FileName) - 0 ] = 0;
+            #else
+                if ( impl->flags & DIR_FLAG_GOT_FIRST )
+                {
+                    if ( ff_findnext( impl->pxFindStruct ) != FF_ERR_NONE )
+                    {
+                        // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
+                        return OS_ERROR;
+                    }
+                }
+                else
+                {
+                    impl->flags |= DIR_FLAG_GOT_FIRST;
+                    if ( ff_findfirst( impl->device_path, impl->pxFindStruct ) != FF_ERR_NONE )
+                    {
+                        // Return OS_ERROR at the end of the directory or if the OS call otherwise fails
+                        return OS_ERROR;
+                    }
+                }
+
+                strncpy(dirent->FileName, impl->pxFindStruct->pcFileName, sizeof(dirent->FileName) - 0 );
+                dirent->FileName[ sizeof(dirent->FileName) - 0 ] = 0;
+            #endif
+
+                return_code = OS_SUCCESS;
+                break;
+        }
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_FS_BASED:
+        {
+            FRESULT result;
+            FILINFO fno;
+
+            result = f_readdir(&impl->dir, &fno);
+
+            /* Check if the read was successful. */
+            if (result == FR_OK)
+            {
+                /* Check for end of dir. */
+                if (fno.fname[0] != 0)
+                {
+                    strncpy(dirent->FileName, fno.fname, sizeof(dirent->FileName));
+                    return_code = OS_SUCCESS;
+                }
+                else
+                {
+                    /* Return OS_ERROR at the end of directory. */
+                    return OS_ERROR;
+                }
+            }
+            else
+            {
+                /* Return OS_ERROR in case of read dir error. */
+                return_code = OS_ERROR;
+            }
+
+            break;
+        }
+        #endif
+        default:
+            return_code = OS_ERR_NOT_IMPLEMENTED;
+            break;
+    }
+
+    return return_code;
+ } /* end OS_DirRead_Impl */
 
 
 
@@ -379,6 +466,11 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
     int device;
     #endif
 
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Used for Chan FatFs */
+        FRESULT result;
+    #endif
+
     char device_path [OS_MAX_LOCAL_PATH_LEN];
 
     OS_CHECK_STRING(local_path, sizeof(device_path), OS_FS_ERR_PATH_TOO_LONG);
@@ -432,6 +524,21 @@ int32 OS_DirCreate_Impl(const char *local_path, uint32 access)
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
             return_code = OS_SUCCESS;
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_FS_BASED:
+            result = f_mkdir(device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
@@ -461,6 +568,11 @@ int32 OS_DirRemove_Impl(const char *local_path)
     #ifdef OS_FILESYSTEM_RAMDISK_IS_XILMFS
     int device;
     int mfs_result;
+    #endif
+
+    #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        /* Usef for Chan FatFs*/
+        FRESULT result;
     #endif
 
     char device_path [OS_MAX_LOCAL_PATH_LEN];
@@ -503,8 +615,26 @@ int32 OS_DirRemove_Impl(const char *local_path)
                 OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
                 return_code = OS_ERR_NOT_IMPLEMENTED;
             #endif /* !OS_FILESYSTEM_RAMDISK_IS_XILMFS */
+
             return_code = OS_SUCCESS;
+
             break;
+        #ifdef OS_FILESYSTEM_NON_VOLATILE_IS_FATFS
+        case OS_FILESYS_TYPE_FS_BASED:
+            /* Removes a file or sub-directory from the volume. */
+            result = f_unlink(device_path);
+
+            if (result == FR_OK)
+            {
+                return_code = OS_SUCCESS;
+            }
+            else
+            {
+                return_code = OS_ERROR;
+            }
+
+            break;
+        #endif
         default:
             OS_DEBUG("OS_ERR_NOT_IMPLEMENTED \n");
             return_code = OS_ERR_NOT_IMPLEMENTED;
