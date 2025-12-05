@@ -51,10 +51,11 @@ DSTATUS mmc_di_if_init(void)
         ASSERT(mss_does_xml_ver_support_switch() == true);
 
         /* SD Card configuration */
+        g_mmc.clk_rate = MSS_MMC_CLOCK_50MHZ;
         g_mmc.card_type = MSS_MMC_CARD_TYPE_SD;
         g_mmc.data_bus_width = MSS_MMC_DATA_WIDTH_4BIT;
         g_mmc.bus_speed_mode = MSS_SDCARD_MODE_HIGH_SPEED;
-        g_mmc.clk_rate = MSS_MMC_CLOCK_50MHZ;
+        g_mmc.bus_voltage = MSS_MMC_1_8V_BUS_VOLTAGE;
 
         mmc_reset_block();
 
@@ -76,58 +77,46 @@ DRESULT mmc_di_if_write(const BYTE *buff, DWORD sector, BYTE count)
 {
     DRESULT status = RES_ERROR;
     mss_mmc_status_t mmc_status = MSS_MMC_TRANSFER_FAIL;
+    int i;
 
-    /* Check status */
-    do
-    {
-        mmc_main_plic_IRQHandler();
-        mmc_status = MSS_MMC_get_transfer_status();
-    } while (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status);
-
-    /* Write to physical memory */
-    mmc_status = MSS_MMC_adma2_write(buff, sector, (count * 512));
-
-    /* Check status */
-    if (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status)
-    {
-        do
-        {
-            mmc_main_plic_IRQHandler();
-            mmc_status = MSS_MMC_get_transfer_status();
-        } while (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status);
+    i = 0;
+    mmc_status = MSS_MMC_TRANSFER_SUCCESS;
+    while (i < count && mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
+        mmc_status = MSS_MMC_single_block_write((uint32_t*)(buff + (i * 512)), sector + i);
+        i++;
     }
 
-    status = (MSS_MMC_TRANSFER_SUCCESS == mmc_status) ? RES_ERROR : RES_OK;
+    if (mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
+        status = RES_OK;
+    }
+    else {
+        status = RES_ERROR;
+    }
+
     return status;
 }
 
 /* MMC Read function */
 DRESULT mmc_di_if_read(DWORD sector, BYTE *buff, BYTE count)
 {
+    mss_mmc_status_t mmc_status;
+    DRESULT status;
+    int i;
 
-    DRESULT status = RES_ERROR;
-    mss_mmc_status_t mmc_status = MSS_MMC_TRANSFER_FAIL;
-    /* Check status */
-    do
-    {
-        mmc_main_plic_IRQHandler();
-        mmc_status = MSS_MMC_get_transfer_status();
-    } while (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status);
-
-    /* Read physical memory */
-    mmc_status = MSS_MMC_adma2_read(sector, buff, (count * 512));
-
-    /* Check status */
-    if (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status)
-    {
-        do
-        {
-            mmc_main_plic_IRQHandler();
-            mmc_status = MSS_MMC_get_transfer_status();
-        } while (MSS_MMC_TRANSFER_IN_PROGRESS == mmc_status);
+    i = 0;
+    mmc_status = MSS_MMC_TRANSFER_SUCCESS;
+    while (i < count && mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
+        mmc_status = MSS_MMC_single_block_read(sector + i, (uint32_t*)(buff + (i * 512)));
+        i++;
     }
 
-    status = (MSS_MMC_TRANSFER_SUCCESS != mmc_status) ? RES_ERROR : RES_OK;
+    if (mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
+        status = RES_OK;
+    }
+    else {
+        status = RES_ERROR;
+    }
+
     return status;
 }
 

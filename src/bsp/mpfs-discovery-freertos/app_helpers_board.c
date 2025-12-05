@@ -211,16 +211,7 @@ void HLP_vSystemConfig(void)
 
     PLIC_init();
 
-    PLIC_EnableIRQ(MMC_main_PLIC);
-    PLIC_EnableIRQ(MMC_wakeup_PLIC);
-
     __enable_irq();
-
-    /* DMA init for MMC */
-    MSS_MPU_configure(
-        MSS_MPU_MMC, MSS_MPU_PMP_REGION3, LIM_BASE_ADDRESS, LIM_SIZE,
-        MPU_MODE_READ_ACCESS | MPU_MODE_WRITE_ACCESS | MPU_MODE_EXEC_ACCESS,
-        MSS_MPU_AM_NAPOT, 0u);
 
     // Just some blinking for visually observing a reboot
     for (int i = 0; i < 3; i++)
@@ -347,23 +338,23 @@ uint32_t HLP_uGetResetType(void) {
 
     if (reset_register & RESET_SR_SCB_PERIPH_RESET_MASK)
     {
-        reset_type = RESET_TYPE_POWERON;
+        reset_type = HLP_RESET_TYPE_POWERON;
     }
     else if (reset_register & RESET_SR_FABRIC_RESET_MASK)
     {
-        reset_type = RESET_TYPE_EXTERNAL;
+        reset_type = HLP_RESET_TYPE_EXTERNAL;
     }
     else if (reset_register & RESET_SR_WDOG_RESET_MASK)
     {
-        reset_type = RESET_TYPE_WATCHDOG;
+        reset_type = HLP_RESET_TYPE_WATCHDOG;
     }
     else if (reset_register & (0x01 << 0x8))
     {
-        reset_type = RESET_TYPE_SOFTWARE;
+        reset_type = HLP_RESET_TYPE_SOFTWARE;
     }
     else
     {
-        reset_type = RESET_TYPE_POWERON;
+        reset_type = HLP_RESET_TYPE_POWERON;
     }
 }
 
