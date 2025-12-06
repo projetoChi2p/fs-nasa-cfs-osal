@@ -30,7 +30,7 @@
 #define  LIBERO_SETTING_MSS_CONFIGURATOR_VERSION                    "2024.1"
 #define  LIBERO_SETTING_DESIGN_NAME                                 "MPFS_DISCOVERY_KIT_MSS"
 #define  LIBERO_SETTING_MPFS_PART                                   "MPFS095T"
-#define  LIBERO_SETTING_GENERATION_DATE                             "12-06-2024_12:09:30"
+#define  LIBERO_SETTING_GENERATION_DATE                             "11-21-2025_12:55:33"
 #define  LIBERO_SETTING_XML_VERSION                                 "0.6.8"
 #define  LIBERO_SETTING_XML_VERSION_MAJOR                           0
 #define  LIBERO_SETTING_XML_VERSION_MINOR                           6
