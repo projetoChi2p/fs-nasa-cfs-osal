@@ -61,7 +61,7 @@ MEMORY
     u54_2_itim (rwx) : ORIGIN = 0x01810000, LENGTH = 28k
     u54_3_itim (rwx) : ORIGIN = 0x01818000, LENGTH = 28k
     u54_4_itim (rwx) : ORIGIN = 0x01820000, LENGTH = 28k
-    l2lim (rwx)      : ORIGIN = 0x08000000, LENGTH = 512k
+    l2lim (rwx)      : ORIGIN = 0x08000000, LENGTH = 1920k
     /* MPFS scratchpad sections example */
     scratchpad(rwx)  : ORIGIN = 0x0A000000, LENGTH = 0k
     ddr_cached_32bit (rwx) : ORIGIN  = 0x80000000, LENGTH = 128M
@@ -106,7 +106,7 @@ STACK_SIZE_U54_4_APPLICATION = 8k;
 
 
 /* reset address 0xC0000000 */
-SECTION_START_ADDRESS           = 0x80000000; 
+SECTION_START_ADDRESS           = 0x08000000; 
 
 
 SECTIONS
@@ -159,7 +159,7 @@ SECTIONS
 
         . = ALIGN(0x10);
         __text_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
 
     /* short/global data section */
     .sdata : ALIGN(0x10)
@@ -174,7 +174,7 @@ SECTIONS
         *(.sdata .sdata.* .gnu.linkonce.s.*)
         . = ALIGN(0x10);
         __sdata_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
  
     /* data section */
     .data : ALIGN(0x10)
@@ -186,7 +186,7 @@ SECTIONS
         *(.data .data.* .gnu.linkonce.d.*)
         . = ALIGN(0x10);
         __data_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
 
     /* sbss section */
     .sbss : ALIGN(0x10)
@@ -196,7 +196,7 @@ SECTIONS
         *(.scommon)
         . = ALIGN(0x10);
         __sbss_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
 
     /* sbss section */
     .bss : ALIGN(0x10)
@@ -207,7 +207,7 @@ SECTIONS
         *(COMMON)
         . = ALIGN(0x10);
         __bss_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
 
     /* End of uninitialized data segment */
     _end = .;
@@ -220,7 +220,7 @@ SECTIONS
         __heap_end = .;
         . = ALIGN(0x10);
         _heap_end = __heap_end;
-    } > ddr_cached_32bit
+    } > l2lim
   
     /* must be on 4k boundary- corresponds to page size */
     .stack : ALIGN(0x1000)
@@ -258,7 +258,7 @@ SECTIONS
         PROVIDE(__stack_top_h4$ = .);
 	
         PROVIDE(__app_stack_top = .);
-    } > ddr_cached_32bit
+    } > l2lim
     
     /* 
      * used by a program loaded by a bootloader to store information passed 
@@ -273,7 +273,7 @@ SECTIONS
         PROVIDE(__app_hart_common_start = .);
         . += SIZE_OF_COMMON_HART_MEM;
         PROVIDE(__app_hart_common_end = .);
-    } > ddr_cached_32bit
+    } > l2lim
 
 
     /* bss-like section */
@@ -285,6 +285,6 @@ SECTIONS
         *(.noinit.*)
         . = ALIGN(0x10);
         __noinit_end = .;
-    } > ddr_cached_32bit
+    } > l2lim
 }
 
