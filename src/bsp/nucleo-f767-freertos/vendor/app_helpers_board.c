@@ -674,7 +674,7 @@ void HLP_vSystemRestart(void) {
 uint32_t HLP_uGetResetType(void) {
     uint32_t reset_type;
 
-    reset_type = RESET_TYPE_POWERON;
+    reset_type = HLP_RESET_TYPE_POWERON;
 
     return reset_type;
 }
