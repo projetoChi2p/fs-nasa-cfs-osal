@@ -86,13 +86,7 @@ DRESULT mmc_di_if_write(const BYTE *buff, DWORD sector, BYTE count)
         i++;
     }
 
-    if (mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
-        status = RES_OK;
-    }
-    else {
-        status = RES_ERROR;
-    }
-
+    status = (MSS_MMC_TRANSFER_SUCCESS != mmc_status) ? RES_ERROR : RES_OK;
     return status;
 }
 
@@ -110,13 +104,7 @@ DRESULT mmc_di_if_read(DWORD sector, BYTE *buff, BYTE count)
         i++;
     }
 
-    if (mmc_status == MSS_MMC_TRANSFER_SUCCESS) {
-        status = RES_OK;
-    }
-    else {
-        status = RES_ERROR;
-    }
-
+    status = (MSS_MMC_TRANSFER_SUCCESS != mmc_status) ? RES_ERROR : RES_OK;
     return status;
 }
 
