@@ -12,6 +12,14 @@
 
 #include "app_helpers.h"
 
+
+int main(int argc, char *argv[]);
+
+void application_main(void) 
+{
+    (void)main(0, NULL);
+}
+
 #ifdef BUILD_STM32F767_TRACE_ENABLE
 
 // See also ST Microeletronics Reference manual RM0410 "Debug support (DBG)" chapter

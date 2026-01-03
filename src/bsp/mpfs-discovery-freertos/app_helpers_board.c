@@ -35,16 +35,17 @@ uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 
 extern void freertos_risc_v_trap_handler( void );
 extern void freertos_vector_table( void );
+int main(int argc, char *argv[]);
 
 #if ( (MPFS_HAL_FIRST_HART<=0) && (0>=MPFS_HAL_LAST_HART) )
 void e51(void) {
-    (void)main();
+    (void)main(0, NULL);
 }
 #endif
 
 #if ( (MPFS_HAL_FIRST_HART<=1) && (1>=MPFS_HAL_LAST_HART) )
 void u54_1(void) {
-    (void)main();
+    (void)main(0, NULL);
 }
 #endif
 
