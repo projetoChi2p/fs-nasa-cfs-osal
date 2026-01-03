@@ -447,19 +447,17 @@ void HLP_ReportFilesIfOnTime(void)
 
 #endif /* OS_CONSOLE_TASK_REPORT_FILES */
 
+#if (defined(OS_CONSOLE_TASK_REPORT_TASKS) || defined (FREERTOS_TRACE_ENABLED) || defined(IDLE_TASK_REPORT_TASKS))
+
 #define TASK_STATUS_ARRAY_SIZE (OS_MAX_TASKS+10) // Give room for some non-osal pure FreeRTOS tasks, like idle and timer
 TaskStatus_t g_task_status_array[TASK_STATUS_ARRAY_SIZE];
 
-#ifdef OS_CONSOLE_TASK_REPORT_TASKS
+#endif
 
-TickType_t g_last_tasks_report_ticks = 0;
+#if (defined(OS_CONSOLE_TASK_REPORT_TASKS) || defined(IDLE_TASK_REPORT_TASKS))
 
-
+volatile static TickType_t g_last_tasks_report_ticks = 0;
 #define OS_CONSOLE_TASK_REPORT_TASKS_PERIOD_TICKS (WALLCLOCK_TICKS_PER_SECOND * 30)
-
-// NASA cFS says: It is always a good idea to verify that no more 
-// than 1/2 of the stack is used.
-#define CFS_STACK_USAGE_WARNING_THRESH_PERCENT 50
 
 /*
  * Macros used by vListTask to indicate which state a task is in.
@@ -470,6 +468,16 @@ TickType_t g_last_tasks_report_ticks = 0;
 #define tskDELETED_CHAR		( 'D' )
 #define tskSUSPENDED_CHAR	( 'S' )
 #define tskUNKNOWN_CHAR	    ( '?' )
+
+#endif
+
+
+#ifdef OS_CONSOLE_TASK_REPORT_TASKS
+
+// NASA cFS says: It is always a good idea to verify that no more 
+// than 1/2 of the stack is used.
+#define CFS_STACK_USAGE_WARNING_THRESH_PERCENT 50
+
 
 void HLP_ReportTasksIfOnTime(void)
 {
@@ -613,6 +621,111 @@ void HLP_ReportTasksIfOnTime(void)
 
 #endif /* OS_CONSOLE_TASK_REPORT_TASKS */
 
+#ifdef IDLE_TASK_REPORT_TASKS
+
+volatile static uint64_t mstatus;
+volatile static uint64_t cycle;
+
+#define read_csr_by_name(csrname) __extension__ \
+({                                              \
+    unsigned long __tmp;                        \
+    __asm__ __volatile__ (                      \
+        "csrr %0, " #csrname                    \
+        : "=r" (__tmp)                          \
+    );                                          \
+    __tmp;                                      \
+})
+
+
+void HLP_ReportTasksIfOnTime(void)
+{
+    TickType_t now_ticks = xTaskGetTickCountFromISR();//xTaskGetTickCount();
+    
+    cycle = read_csr_by_name(cycle);
+    mstatus = read_csr_by_name(mstatus);
+
+    if (g_last_tasks_report_ticks > now_ticks)
+    {
+        g_last_tasks_report_ticks = now_ticks;   
+    }
+    if ( (now_ticks - g_last_tasks_report_ticks) > OS_CONSOLE_TASK_REPORT_TASKS_PERIOD_TICKS )
+    {
+        uint8_t debug_buffer_16[16];
+        uint32_t u32NumberOfTasks;
+        uint32_t ulTotalRunTime;
+        char cStatus;
+        unsigned long stack_size_bytes;
+        unsigned long stack_used_bytes;
+        unsigned long stack_free_bytes;
+        unsigned long stack_used_percent;
+
+        TaskHandle_t idle_task_handle;
+        TaskHandle_t timer_task_handle;
+
+        idle_task_handle = xTaskGetIdleTaskHandle();
+        timer_task_handle = xTimerGetTimerDaemonTaskHandle();
+
+        memset(g_task_status_array, 0, sizeof(g_task_status_array));
+        u32NumberOfTasks = uxTaskGetSystemState( g_task_status_array, TASK_STATUS_ARRAY_SIZE, &ulTotalRunTime );
+
+        HLP_vConsolePrintStringBaremetal(">\n");
+
+        //printf("FreeRTOS                 OSAL                 S Pri           Stack\r\n");
+        //printf("No. Name                 Name                         Free   Max.     Used\r\n");
+        //OS_printf("--- -------------------- -------------------- - --- ------ ------ -----------\r\n");
+
+        /* Create a human readable table from the binary data. */
+        for( unsigned int x = 0; x < u32NumberOfTasks; x++ )
+        {
+
+            // FreeRTOS watermark is always free space
+            // The closer to zero may overflow
+            stack_free_bytes = (g_task_status_array[ x ].usStackHighWaterMark * sizeof(StackType_t));
+
+            switch( g_task_status_array[ x ].eCurrentState )
+            {
+                case eRunning:		cStatus = tskRUNNING_CHAR;
+                                    break;
+
+                case eReady:		cStatus = tskREADY_CHAR;
+                                    break;
+
+                case eBlocked:		cStatus = tskBLOCKED_CHAR;
+                                    break;
+
+                case eSuspended:	cStatus = tskSUSPENDED_CHAR;
+                                    break;
+
+                case eDeleted:		cStatus = tskDELETED_CHAR;
+                                    break;
+
+                case eInvalid:		/* Fall through. */
+                default:			/* Should not get here, but it is included
+                                    to prevent static checking errors. */
+                                    cStatus = tskUNKNOWN_CHAR;
+                                    break;
+            }
+
+            HLP_vPrintU32(debug_buffer_16, g_task_status_array[ x ].xTaskNumber);
+            HLP_vConsolePrintStringBaremetal(debug_buffer_16);
+            HLP_vConsolePrintBytesBaremetal( " ", 1 );
+            HLP_vConsolePrintBytesBaremetal( &cStatus, 1 );
+            HLP_vConsolePrintBytesBaremetal( " ", 1 );
+            HLP_vPrintU32(debug_buffer_16, stack_free_bytes);
+            HLP_vConsolePrintStringBaremetal(debug_buffer_16);
+            HLP_vConsolePrintBytesBaremetal( " ", 1 );
+            HLP_vConsolePrintStringBaremetal(g_task_status_array[ x ].pcTaskName);
+            HLP_vConsolePrintBytesBaremetal( "\n", 1 );
+        }
+
+        g_last_tasks_report_ticks = now_ticks;
+        //taskEXIT_CRITICAL();
+    }
+}
+
+#endif /* IDLE_TASK_REPORT_TASKS */
+
+
 #ifdef FREERTOS_TRACE_ENABLED
 
 void HLP_ReportTasksIfComplete(void)
@@ -713,6 +826,10 @@ void HLP_ReportTasksIfComplete(void)
 
 #endif /* FREERTOS_TRACE_ENABLED */
 
+#ifdef IDLE_TASK_REPORT_TASKS
+
+#endif /* IDLE_TASK_REPORT_TASKS */
+
 // INCLUDE_uxTaskGetStackHighWaterMark
 
 // uxTaskGetSystemState()
@@ -731,6 +848,11 @@ void vApplicationIdleHook( void )
      * that vApplicationIdleHook() is permitted to return to its calling function,
      * because it is the responsibility of the idle task to clean up memory
      * allocated by the kernel to any task that has since deleted itself. */
+
+#ifdef IDLE_TASK_REPORT_TASKS
+    HLP_ReportTasksIfOnTime();
+#endif /* IDLE_TASK_REPORT_TASKS */
+
 }
 
 void vApplicationDaemonTaskStartupHook( void )

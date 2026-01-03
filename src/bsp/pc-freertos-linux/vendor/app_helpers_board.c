@@ -1,15 +1,7 @@
 #include <assert.h>
-
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdarg.h>
-
-#include <unistd.h>
-#include <time.h>
 #include <sys/time.h>
-
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -67,7 +59,7 @@ void HLP_vSystemRestart(void) {
 }
 
 uint32_t HLP_uGetResetType(void) {
-    return RESET_TYPE_SOFTWARE;
+    return HLP_RESET_TYPE_SOFTWARE;
 }
 
 void HLP_vLEDToggle(int led)

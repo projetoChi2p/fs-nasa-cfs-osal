@@ -9,6 +9,8 @@
 
 #define DEBUG_PRINT_NUMBER 0
 
+/*********************************************************************
+ */
 static void vPrintNumber(
     uint8_t buffer[16],
     const int32_t n,
@@ -130,7 +132,131 @@ static void vPrintNumber(
 }
 
 
+/*********************************************************************
+ */
+static void vPrintNumber64(
+    uint8_t buffer[32],
+    const int64_t n,
+    const uint8_t base,
+    const uint8_t unsigned_flag,
+    const uint8_t do_padding,
+    const uint8_t pad_character,
+    const uint8_t num1
+)
+{
+    int32_t len;
+    int32_t negative;
+    int32_t i;
+    int32_t j;
+    uint8_t outbuf[32];
+    const uint8_t digits[] = "0123456789ABCDEF";
+    uint64_t num;
+    for (unsigned k = 0; k < sizeof(outbuf); k++) {
+        outbuf[k] = '0';
+    }
 
+#if DEBUG_PRINT_NUMBER
+    printf("\r\nvPrintNumber() ********************\r\nn: %d [%d]\r\n", n, __LINE__);
+#endif
+
+    /* Check if number is negative                   */
+    if ((unsigned_flag == 0) && (base == 10) && (n < 0L)) {
+        negative = 1;
+        num = (-(n));
+    }
+    else {
+        num = n;
+        negative = 0;
+    }
+
+    /* Build number (backwards) in outbuf            */
+    i = 0;
+    do {
+        outbuf[i] = digits[(num % base)];
+        i++;
+        num /= base;
+    } while (num > 0);
+
+    if (negative != 0) {
+        outbuf[i] = '-';
+        i++;
+    }
+
+    outbuf[i] = 0;
+    i--;
+
+    len = strlen((char*)outbuf);
+
+#if DEBUG_PRINT_NUMBER
+    printf("outbuf: '");
+    for (j = 0; j < 16; j++) {
+        if (outbuf[j] <= ' ') {
+            printf("<%d>", outbuf[j]);
+        }
+        else {
+            printf("%c", outbuf[j]);
+        }
+    }
+    printf("'\r\n");
+    printf("len: %d\r\n", len);
+    printf("i: %d\r\n", i);
+#endif
+
+    if ((do_padding != 0) && (len < num1)) {
+        i = len;
+        for (; i < num1; i++) {
+            outbuf[i] = pad_character;
+        }
+
+        outbuf[i] = 0;
+        i--;
+    }
+
+#if DEBUG_PRINT_NUMBER
+    len = strlen(outbuf);
+    printf("x outbuf: '");
+    for (j = 0; j < 16; j++) {
+        if (outbuf[j] <= ' ') {
+            printf("<%d>", outbuf[j]);
+        }
+        else {
+            printf("%c", outbuf[j]);
+        }
+    }
+    printf("'\r\n");
+    printf("x len: %d\r\n", len);
+    printf("x i: %d\r\n", i);
+#endif
+
+    for (j = 0; j < 32; j++) {
+        buffer[j] = 0;
+    }
+
+    j = 0;
+    while (&outbuf[i] >= outbuf) {
+        buffer[j] = outbuf[i];
+        i--;
+        j++;
+    }
+
+#if DEBUG_PRINT_NUMBER
+    buffer[j] = 0;
+    printf("z buffer: '");
+    for (j = 0; j < 32; j++) {
+        if (buffer[j] <= ' ') {
+            printf("<%d>", buffer[j]);
+        }
+        else {
+            printf("%c", buffer[j]);
+        }
+    }
+    printf("'\r\n");
+#endif
+}
+
+
+/*********************************************************************
+ */
 void HLP_vPrintI32(uint8_t outbuf[16], const int32_t n) {
     vPrintNumber(
         outbuf, n,
@@ -141,6 +267,9 @@ void HLP_vPrintI32(uint8_t outbuf[16], const int32_t n) {
         0     /* num1 */);
 }
 
+
+/*********************************************************************
+ */
 void HLP_vPrintU32(uint8_t outbuf[16], const uint32_t n) {
     vPrintNumber(
         outbuf, n,
@@ -152,6 +281,8 @@ void HLP_vPrintU32(uint8_t outbuf[16], const uint32_t n) {
 }
 
 
+/*********************************************************************
+ */
 void HLP_vPrintU16(uint8_t outbuf[16], const uint16_t n) {
     vPrintNumber(
         outbuf, n,
@@ -162,6 +293,9 @@ void HLP_vPrintU16(uint8_t outbuf[16], const uint16_t n) {
         0     /* num1 */);
 }
 
+
+/*********************************************************************
+ */
 void HLP_vPrintU8(uint8_t outbuf[16], const uint8_t n) {
     vPrintNumber(
         outbuf, n,
@@ -173,6 +307,8 @@ void HLP_vPrintU8(uint8_t outbuf[16], const uint8_t n) {
 }
 
 
+/*********************************************************************
+ */
 void HLP_vPrintHexU32(uint8_t outbuf[16], const uint32_t n) {
     vPrintNumber(
         outbuf, n,
@@ -184,6 +320,8 @@ void HLP_vPrintHexU32(uint8_t outbuf[16], const uint32_t n) {
 }
 
 
+/*********************************************************************
+ */
 void HLP_vPrintHexU8(uint8_t outbuf[16], const uint8_t n) {
     vPrintNumber(
         outbuf, n,
@@ -194,6 +332,9 @@ void HLP_vPrintHexU8(uint8_t outbuf[16], const uint8_t n) {
         2     /* num1 */);
 }
 
+
+/*********************************************************************
+ */
 void HLP_vPrintHexU16(uint8_t outbuf[16], const uint16_t n) {
     vPrintNumber(
         outbuf, n,
@@ -205,6 +346,8 @@ void HLP_vPrintHexU16(uint8_t outbuf[16], const uint16_t n) {
 }
 
 
+/*********************************************************************
+ */
 void HLP_vPrintFloat(uint8_t outbuf[16], float f, uint8_t integer_pad, uint8_t decimals_pad) {
     int i;
     uint8_t intbuf[16];
@@ -258,6 +401,19 @@ void HLP_vPrintFloat(uint8_t outbuf[16], float f, uint8_t integer_pad, uint8_t d
 
 /*********************************************************************
  */
+void HLP_vPrintHexU64(uint8_t outbuf[32], const uint64_t n) {
+    vPrintNumber64(
+        outbuf, n,
+        16,   /* base */
+        1,    /* unsigned_flag */
+        1,    /* do_padding */
+        '0',  /* pad_character */
+        8     /* num1 */);
+}
+
+
+/*********************************************************************
+ */
 char HLP_cNible2Text(uint8_t nibble) {
     char result;
 
@@ -305,6 +461,8 @@ uint8_t HLP_u8BuildFlags(void) {
 }
 
 
+/*********************************************************************
+ */
 int HLP_bIsBigEndian(void) {
     union {
         uint32_t i;
@@ -314,110 +472,14 @@ int HLP_bIsBigEndian(void) {
     return e.c[0];
 }
 
+/*********************************************************************
+ */
 uint8_t HLP_u8Maj(volatile const uint8_t v1, volatile const uint8_t v2, volatile const uint8_t v3) {
     return ((v2 & v3) | (v1 & v3) | (v1 & v2) | (v1 & v2 & v3));
 }
 
+/*********************************************************************
+ */
 uint16_t HLP_u16Maj(volatile const uint16_t v1, volatile const uint16_t v2, volatile const uint16_t v3) {
     return ((v2 & v3) | (v1 & v3) | (v1 & v2) | (v1 & v2 & v3));
 }
-
-
-#define FLASH_ICACHE_PREFETCH_ENABLED   (1<<0)
-#define FLASH_ICACHE_ENABLED            (1<<1)
-#define FLASH_DCACHE_ENABLED            (1<<2)
-
-#define CORTEX_ICACHE_ENABLED           (1<<4)
-#define CORTEX_DCACHE_ENABLED           (1<<5)
-#define CORTEX_CACHE_WRITE_THROUGH      (1<<6)
-
-uint8_t HLP_u8GetCacheSettings(void) {
-    uint8_t cache_settings = 0;
-   
-    //
-    // Vendor specific SoC Flash cache
-    //
-    // STM ART settings, stm32l4xx_hal_conf.h or stm32f7xx_hal_conf.h
-    #ifdef PREFETCH_ENABLE
-    #if (PREFETCH_ENABLE)
-        cache_settings |= FLASH_ICACHE_PREFETCH_ENABLED;
-    #endif
-    #endif
-    
-    // STM ART settings, stm32l4xx_hal_conf.h
-    #ifdef INSTRUCTION_CACHE_ENABLE
-    #if (INSTRUCTION_CACHE_ENABLE)
-        cache_settings |= FLASH_ICACHE_ENABLED;
-    #endif
-    #endif
-
-    // STM ART settings, stm32f7xx_hal_conf.h
-    //For stm32f7 the ART cache covers only accesses through ITCM interface
-    // ART_ACCLERATOR_ENABLE (!sic), not ART_ACCELERATOR_ENABLE
-    #ifdef ART_ACCLERATOR_ENABLE
-    #if (ART_ACCLERATOR_ENABLE)
-        cache_settings |= FLASH_ICACHE_ENABLED;
-    #endif
-    #endif
-    
-    // Cypress PSoC 5 LP
-    #ifdef CYDEV_INSTRUCT_CACHE_ENABLED
-    #if (CYDEV_INSTRUCT_CACHE_ENABLED)
-        cache_settings |= FLASH_ICACHE_ENABLED;
-    #endif
-    #endif
-        
-    // STM ART settings, stm32l4xx_hal_conf.h
-    #ifdef DATA_CACHE_ENABLE
-    #if (DATA_CACHE_ENABLE)
-        cache_settings |= FLASH_DCACHE_ENABLED;
-    #endif
-    #endif
-    
-    
-    //
-    // Arm Cortex CPU cache
-    //
-    
-    //stm32f7xx
-    //app_helpers.h see also HLP_vSystemConfig() for MPU_Config() and/or CPU_CACHE_Enable()
-    #ifdef HLP_INSTRUCTION_CACHE_ENABLE
-    #if (HLP_INSTRUCTION_CACHE_ENABLE)
-        cache_settings |= CORTEX_ICACHE_ENABLED;
-    #endif
-    #endif
-            
-    #ifdef HLP_DATA_CACHE_ENABLE
-    #if (HLP_DATA_CACHE_ENABLE)
-        cache_settings |= CORTEX_DCACHE_ENABLED;
-    #endif
-    #endif
-    
-    #ifdef HLP_MPU_SET_WRITE_THROUGH
-    #if (HLP_MPU_SET_WRITE_THROUGH)
-        cache_settings |= CORTEX_CACHE_WRITE_THROUGH;
-    #endif
-    #endif
-    
-	//zynq-7000
-	#ifdef APP_L1_ICACHE
-	#if (APP_L1_ICACHE == 1)
-        cache_settings |= CORTEX_ICACHE_ENABLED;
-	#endif
-    #endif
-
-	#ifdef APP_L1_DCACHE
-	#if (APP_L1_DCACHE == 1)
-        cache_settings |= CORTEX_DCACHE_ENABLED;
-	#endif
-    #endif
-
-	#ifdef APP_L1_CACHE_WRITE_THROUGH
-	#if (APP_L1_CACHE_WRITE_THROUGH == 1)
-        cache_settings |= CORTEX_CACHE_WRITE_THROUGH;
-	#endif
-    #endif
-	
-    return cache_settings;
-}
-

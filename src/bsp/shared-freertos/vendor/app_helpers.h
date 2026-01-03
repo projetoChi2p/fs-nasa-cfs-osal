@@ -121,6 +121,8 @@ void HLP_vPrintU16(uint8_t outbuf[16], const uint16_t n);
 void HLP_vPrintU32(uint8_t outbuf[16], const uint32_t n);
 void HLP_vPrintHexU32(uint8_t outbuf[16], const uint32_t n);
 
+void HLP_vPrintHexU64(uint8_t outbuf[32], const uint64_t n);
+
 void HLP_vPrintFloat(uint8_t outbuf[16], float f, uint8_t integer_pad, uint8_t decimals_pad);
 
 
@@ -146,6 +148,7 @@ void HLP_vConsoleInit( void );
 void HLP_vConsolePrintFormatted( const char * fmt, ... );
 void HLP_vConsolePrintBytesStdioUnlocked( const uint8_t *data, int size );
 void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size );
+void HLP_vConsolePrintStringBaremetal( const char *sz );
 void HLP_vConsolePrintFormattedBaremetal( const char * fmt, ... );
 
 #ifdef __cplusplus

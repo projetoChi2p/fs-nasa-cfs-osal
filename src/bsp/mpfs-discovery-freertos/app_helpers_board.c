@@ -356,6 +356,8 @@ uint32_t HLP_uGetResetType(void) {
     {
         reset_type = HLP_RESET_TYPE_POWERON;
     }
+    
+    return reset_type;
 }
 
 

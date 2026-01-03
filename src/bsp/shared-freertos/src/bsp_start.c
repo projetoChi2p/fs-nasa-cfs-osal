@@ -28,6 +28,9 @@ void OS_BSP_Shutdown_Impl(void){
     #if (defined(__arm__) && !defined(__linux__))
         vTaskDelete(NULL);
     #elif (defined(__riscv) && !defined(__linux__))
+        while(1) {
+            __asm__ __volatile__("nop");
+        }
         vTaskDelete(NULL);
     #elif (defined(__i386__) && defined(__linux__))
         exit(0);
@@ -100,17 +103,23 @@ UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
 }
 
 
-int main(void)
+int main(int argc, char *argv[])
 {
 
     BaseType_t xReturnCode;
 
-    OS_BSP_GenericFreeRtosGlobal.AccessMutex = NULL;
+    /*
+     * Initially clear the global objects
+     */
+    memset(&OS_BSP_Global, 0, sizeof(OS_BSP_Global));
+    memset(&OS_BSP_GenericFreeRtosGlobal, 0, sizeof(OS_BSP_GenericFreeRtosGlobal));
+
+    OS_BSP_Global.ArgC = argc;
+    OS_BSP_Global.ArgV = argv;
 
     HLP_vSystemConfig();
     // PSP_Console_Init();
 
-    memset(&OS_BSP_Global, 0, sizeof(OS_BSP_Global));
     OS_BSP_GenericFreeRtosGlobal.AccessMutex = xSemaphoreCreateMutex();
 
     if(OS_BSP_GenericFreeRtosGlobal.AccessMutex == NULL){

@@ -1112,17 +1112,24 @@ int32 OS_FreeRTOS_TranslateLocalPath(const char *LocalPath, OS_object_token_t *F
             {
                 DevicePath[0] = '/';
                 DevicePath[1] = '\0';
+                return_code = OS_SUCCESS;
             }
             else
             {
                 // findMountPoint() checks for local path for having a delimiter '/' immeditate to mount point prefix
                 DevicePathLen = LocalPathLen - SysMountPointLen;
 
-                memcpy(DevicePath, &LocalPath[SysMountPointLen], DevicePathLen);
-                DevicePath[DevicePathLen + 2] = '\0';
+                if (DevicePathLen >= OS_MAX_LOCAL_PATH_LEN)
+                {
+                    return_code = OS_FS_ERR_PATH_TOO_LONG;
+                }
+                else
+                {
+                    memcpy(DevicePath, &LocalPath[SysMountPointLen], DevicePathLen);
+                    DevicePath[DevicePathLen] = '\0';
+                    return_code = OS_SUCCESS;
+                }
             }
-
-            return_code = OS_SUCCESS;
         }
         else if (filesys->fstype == OS_FILESYS_TYPE_FS_BASED)
         {
