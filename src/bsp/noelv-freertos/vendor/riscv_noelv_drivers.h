@@ -410,6 +410,7 @@ typedef struct
     volatile uint32_t data;
     volatile uint32_t status;
     volatile uint32_t ctrl;
+    volatile uint32_t scaler;
 } UartDevice;
 
 #define UART0_BASE (0xff900000U)
@@ -431,6 +432,21 @@ enum {
 };
 
 static int fifoinfo = FIFO_UNKNOWN;
+
+
+/***************************************************************************
+ */
+static inline void uart_set_scaler(UartDevice *UARTx, const uint32_t scaler)
+{
+    UARTx->scaler = scaler;
+}
+
+/***************************************************************************
+ */
+static inline uint32_t uart_get_scaled(UartDevice *UARTx)
+{
+    return UARTx->scaler;
+}
 
 
 /***************************************************************************

@@ -60,6 +60,7 @@ uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 
 #define BOOT_INFO_MAGIC     0x0123B001U
 #define BOOT_INFO_WARM_BOOT 0xD000B001U
+#define BOOT_INFO_COLD_BOOT 0xD000B000U
 
 __attribute__ ((section(".noinit.boot_info")))
 struct
@@ -73,9 +74,16 @@ struct
 
 /***************************************************************************
  */
-void HLP_vSystemRestart(void)
+void HLP_vSystemRestart(uint32_t reset_type)
 {
-    boot_info.user_software_reset = BOOT_INFO_WARM_BOOT;
+    if (reset_type == HLP_RESET_TYPE_POWERON)
+    {
+        boot_info.user_software_reset = BOOT_INFO_COLD_BOOT;
+    }
+    else
+    {
+        boot_info.user_software_reset = BOOT_INFO_WARM_BOOT;
+    }
     system_warm_boot();
     while (1)
     {
@@ -93,7 +101,11 @@ uint32_t HLP_uGetResetType(void)
 
     if (boot_info.magic == BOOT_INFO_MAGIC)
     {
-        if (boot_info.user_software_reset == BOOT_INFO_WARM_BOOT)
+        if (boot_info.user_software_reset == BOOT_INFO_COLD_BOOT)
+        {
+            reset_type = HLP_RESET_TYPE_POWERON;
+        }
+        else if (boot_info.user_software_reset == BOOT_INFO_WARM_BOOT)
         {
             reset_type = HLP_RESET_TYPE_SOFTWARE;
         }
@@ -449,12 +461,14 @@ void HLP_vSystemConfig(void)
 
     HLP_vConsoleInit();
 
+    uart_set_scaler(UART0, CPU_FREQUENCY/8/460800);
+
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: RISC-V NOEL-V FreeRTOS\n", __func__, __LINE__);
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: FreeRTOS Kernel is %s \n", __func__, __LINE__, tskKERNEL_VERSION_NUMBER);
-    HLP_vConsolePrintFormattedBaremetal("%s [%d]: Compiler %s\n", __func__, __LINE__, __VERSION__);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: Compiler GCC %s\n", __func__, __LINE__, __VERSION__);
 
     switch( HLP_uGetResetType() )
     {

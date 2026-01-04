@@ -24,7 +24,9 @@ if(OSAL_RAMDISK_FILESYSTEM_IS_MFS)
     FILE(GLOB FILESYSTEM_SOURCES
         ${OSAL_XILINX_MFS_SRC_DIR}/src/mfs_filesys.c
     )
-else()
+endif()
+
+if(OSAL_RAMDISK_FILESYSTEM_IS_FREERTOS_PLUS_FAT)
     message("*** Using OSAL_FREERTOS_PLUS_FAT_SRC_DIR '${OSAL_FREERTOS_PLUS_FAT_SRC_DIR}'.")
     # FreeRTOS + FAT Filesystem
     FILE(GLOB FILESYSTEM_SOURCES
@@ -33,6 +35,13 @@ else()
     )
 endif()
 
+if (OSAL_NON_VOLATILE_FILESYSTEM_IS_FATFS)
+    message("*** Using OSAL_FATFS_SRC_DIR '${OSAL_FATFS_SRC_DIR}'.")
+    # ChaN FatFs File System
+    FILE(GLOB CHAN_FATFS
+        ${OSAL_FATFS_SRC_DIR}/ff*.c
+    )
+endif()
 
 include_directories(
     src
@@ -61,6 +70,7 @@ add_library(osal_pc-freertos-linux_impl OBJECT
     ${FILESYSTEM_SOURCES}
     ${VENDOR_CODE}
     ${SOURCES}
+    ${CHAN_FATFS}
 )
 
 set(OSAL_EXPECTED_OSTYPE "freertos" PARENT_SCOPE)

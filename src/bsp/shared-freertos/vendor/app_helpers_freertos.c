@@ -306,30 +306,34 @@ void HLP_ReportFilesEntries(const char* pszPath, uint8 level)
         while (OS_DirectoryRead(DirId, &DirEntry) == OS_SUCCESS)
         {
             strncpy(&FullPath[DirLen], OS_DIRENTRY_NAME(DirEntry), sizeof(FullPath) - DirLen - 1);
-            FullPath[sizeof(FullPath) - 1] = 0;
 
-            OS_Status = OS_stat(FullPath, &FileStat);
-            if (OS_Status != OS_SUCCESS)
+            if (strncmp(OS_DIRENTRY_NAME(DirEntry), "..", 2) != 0)
             {
-                printf("\n> Failed to stat entry '%s' %ld.\n", FullPath, (long)OS_Status);
-            }
-            else
-            {
-                printf("\t");
-                for (int x = 0; x<level; x++)
+                FullPath[sizeof(FullPath) - 1] = 0;
+
+                OS_Status = OS_stat(FullPath, &FileStat);
+                if (OS_Status != OS_SUCCESS)
                 {
-                    printf("|  ");
-                }
-                printf("+--");
-                if ( OS_FILESTAT_ISDIR(FileStat) )
-                {
-                    printf("d ");
-                    printf("%s\n", OS_DIRENTRY_NAME(DirEntry));
+                    printf("\n> Failed to stat entry '%s' %ld.\n", FullPath, (long)OS_Status);
                 }
                 else
                 {
-                    printf("f ");
-                    printf("%s (%lu B)\n", OS_DIRENTRY_NAME(DirEntry), (unsigned long)FileStat.FileSize);
+                    printf("\t");
+                    for (int x = 0; x<level; x++)
+                    {
+                        printf("|  ");
+                    }
+                    printf("+--");
+                    if ( OS_FILESTAT_ISDIR(FileStat) )
+                    {
+                        printf("d ");
+                        printf("%s\n", OS_DIRENTRY_NAME(DirEntry));
+                    }
+                    else
+                    {
+                        printf("f ");
+                        printf("%s (%lu B)\n", OS_DIRENTRY_NAME(DirEntry), (unsigned long)FileStat.FileSize);
+                    }
                 }
             }
         }
