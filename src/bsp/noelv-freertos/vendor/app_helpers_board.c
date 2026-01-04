@@ -118,6 +118,56 @@ uint32_t HLP_uGetResetType(void)
     return reset_type;
 }
 
+/***************************************************************************
+ */
+uint32_t HLP_vWatchdogEnable( uint32_t millis )
+{
+    uint32_t ticks;
+    
+    
+    //Scale watchdog counter (milliseconds) to NOEL-V ACLINT
+    //Zero millis is a legal value, meaning minimum expiration time
+    ticks = WATCHDOG_MILLISECONDS_TO_TICKS(millis);
+
+    if (ticks == 0)
+    {
+        ticks = 1;
+    }
+
+    /* Do not enable watchdog if can't handle time span */
+    if (ticks > WATCHDOG_COUNTER_MAX)
+    {
+        ticks = 0;
+    }
+
+    // TODO setup NOEL-V ACLINT Watchdog and PLIC IRQ/ISR
+    //      enable watchdog interrupt
+    
+    if (ticks != 0) 
+    {
+        set_watchdog_count_and_clear_events((uint16_t)ticks);
+        set_watchdog_enable();
+    }
+
+    return WATCHDOG_TICKS_TO_MILLISECONDS(ticks);
+}
+
+/***************************************************************************
+ */
+void HLP_vWatchdogDisable( void )
+{
+    clear_watchdog_all();
+    // TODO disable PLIC IRQ 1 and 2 from NOEL-V ACLINT watchdog
+    //      ensure watchdog is disabled and clear expired flags
+}
+
+/***************************************************************************
+ */
+void HLP_vWatchdogFeed( void )
+{
+    uint16_t counter = get_watchdog_counter();
+    set_watchdog_count_and_clear_events(counter);
+}
 
 
 // http://patorjk.com/software/taag/#p=display&f=Colossal&t=
@@ -510,6 +560,9 @@ void HLP_vSystemConfig(void)
     {
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: CPU is little endian.\r\n", __func__, __LINE__);
     }
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: Watchdog resolution %d ms, maximum time %d ms.\r\n", __func__, __LINE__, 
+        WATCHDOG_TICKS_TO_MILLISECONDS(1),
+        WATCHDOG_MAX_MILLISECONDS );
     
     #if __riscv_flen == 0
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: No FPU\n", __func__, __LINE__);

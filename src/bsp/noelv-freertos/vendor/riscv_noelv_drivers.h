@@ -313,6 +313,39 @@ static inline void clear_clint_software_interrupts_enable(void)
 /* Note: watchdog is, in fact, part of ACLINT 
  */
 
+/*
+ * NOEL-V from GRLIB GPL offer two watchdog options:
+ *  - A watchdog integrated into the ACLINT interrupt controller aside the timers
+ *  - A watchdog integrated into the Modular Timer Unit (grtimer) on APB bus
+ * Both watchdogs raises external interrupts, via PLIC.
+ * GRLIB GPL does not offer a reset controller fed by watchdog.
+ * On default NOEL-V system from GRLIB GPL watchdor at grtimer is not present.
+ * The ACLINT watchdog is present by default, but disabled at boot.
+ * ACLINT watchdog can be enabled and disabled at any moment by software.
+ * ACLINT watchdog has two stages:
+ * - First stage raises an interrupt (WATCHDOG_HIRQ1) when timeout occurs.
+ * - Second stage raises a second interrupt (WATCHDOG_HIRQ2) when timeout occurs 
+ *   again after first stage.
+ * Both interrupts can be handled at the BSP level, having no relevant meaning
+ * to PSP.
+ * Both flags of timer expired can be cleared by software.
+ * Loading a counter value into the watchdog register reloads the watchdog counter.
+ * Although, if the expired flags are not cleared, interrupts will be raised
+ * instantly after reloading.
+ * 
+ * Scaling watchdog counter (milliseconds) to NOEL-V ACLINT  watchdog ticks depends
+ * on RTC clock frequency (system clock/2) and clock divider (wdtickbit).
+ * ACLINT watchdog counter is 10 bits.
+ * e.g.: system clock               50 MHz
+ *       RTC clock (/2)             25 MHz
+ *                            tick bit      tick bit    tick bit    tick bit   tick bit
+ *                           4 (default)       6           13          14           20
+ *       divider              /32           /128        /16384      /32768     /2097152
+ *       watchdog clock     781.3 kHz     195.3 kHz     1.5 kHz     762.9 Hz     11.9 Hz
+ *       resolution          1.28 us       5.12 us      655.4 us     1.3 ms      83.9 ms
+ *       10 bits counter      1.3 ms       5.3 ms       686.5 ms     1.4 s       85.9 s
+ *       2 watchdog stages    2.7 ms      10.7 ms        1.4 s       2.7 s      171.8 s
+ */
 
 
 typedef struct {
@@ -335,9 +368,19 @@ typedef struct {
 
 #define WATCHDOG_TRIGGERED_BITS ((1U<<WATCHDOG_TRIGGERED_STAGE1)|(1U<<WATCHDOG_TRIGGERED_STAGE2))
 
+#define WATCHDOG_TICK_BIT       (20)
+#define WATCHDOG_TICK_BIT_DIV   (1UL << (WATCHDOG_TICK_BIT+1))
+#define WATCHDOG_RTC_DIV        (2UL)
+#define WATCHDOG_STAGES         (2U)
+
+
+#define WATCHDOG_MILLISECONDS_TO_TICKS(millis) (((CPU_FREQUENCY/WATCHDOG_RTC_DIV/1000U)*millis)/WATCHDOG_STAGES/WATCHDOG_TICK_BIT_DIV)
+#define WATCHDOG_TICKS_TO_MILLISECONDS(ticks) ((WATCHDOG_STAGES*WATCHDOG_TICK_BIT_DIV*ticks)/(CPU_FREQUENCY/WATCHDOG_RTC_DIV/1000U))
+#define WATCHDOG_MAX_MILLISECONDS WATCHDOG_TICKS_TO_MILLISECONDS(WATCHDOG_COUNTER_MAX+1)
+
 /***************************************************************************
  */
-static inline void set_watchdog_count(uint16_t count)
+static inline void set_watchdog_count_and_clear_events(uint16_t count)
 {
     uint32_t control;
     if (count > WATCHDOG_COUNTER_MAX)
@@ -346,7 +389,7 @@ static inline void set_watchdog_count(uint16_t count)
     }
 
     control = WATCHDOG0->control;
-
+    control &= (~WATCHDOG_TRIGGERED_BITS);
     control &= (~WATCHDOG_COUNTER_MASK);
     control |= (count<<WATCHDOG_COUNTER);
     
@@ -379,6 +422,15 @@ static inline void clear_watchdog_all()
 {
     WATCHDOG0->control = 0;
 }
+
+static inline uint16_t get_watchdog_counter()
+{
+    uint32_t control;
+    control = WATCHDOG0->control;
+    control &= WATCHDOG_COUNTER_MASK;
+    return (control>>WATCHDOG_COUNTER);
+}
+
 
 static inline uint32_t get_watchdog_state()
 {

@@ -151,6 +151,10 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size );
 void HLP_vConsolePrintStringBaremetal( const char *sz );
 void HLP_vConsolePrintFormattedBaremetal( const char * fmt, ... );
 
+uint32_t HLP_vWatchdogEnable( uint32_t milliseconds );
+void HLP_vWatchdogDisable( void );
+void HLP_vWatchdogFeed( void );
+
 #ifdef __cplusplus
 }
 #endif
