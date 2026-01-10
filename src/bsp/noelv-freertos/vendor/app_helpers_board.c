@@ -344,7 +344,8 @@ void HLP_vConsolePrintBytesBaremetal( const uint8_t *data, int size )
 
 /***************************************************************************
  */
-__attribute__((weak)) void handle_m_ext_interrupt(void)
+__attribute__((weak)) 
+void handle_plic_interrupt(void)
 {
     // TODO we may need to weave PLIC here
     // FBV 2026-01-02 When using external IRQs, attached to PLIC,
@@ -362,8 +363,8 @@ __attribute__((weak)) void handle_m_ext_interrupt(void)
  */
 void freertos_risc_v_application_interrupt_handler(void) {
     volatile uint64_t mcause = read_csr_by_name(mcause);
-    if (((mcause & CSR_MCAUSE_INT) == CSR_MCAUSE_INT) && ((mcause & CSR_MCAUSE_CAUSE) == IRQ_M_EXT)) {
-        handle_m_ext_interrupt();
+    if (((mcause & CSR_MCAUSE_INTERRUPT) == CSR_MCAUSE_INTERRUPT) && ((mcause & CSR_MCAUSE_CAUSE) == IRQ_M_EXT)) {
+        handle_plic_interrupt();
     }
     else {
         uint64_t mepc;
@@ -511,7 +512,7 @@ void HLP_vSystemConfig(void)
 
     HLP_vConsoleInit();
 
-    uart_set_scaler(UART0, CPU_FREQUENCY/8/460800);
+    uart_init_and_set_scaler(UART0, CPU_FREQUENCY/8/460800);
 
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintStringBaremetal("*************************************\n");
@@ -589,7 +590,7 @@ void HLP_vSystemConfig(void)
     HLP_vRtosBringUp();
     __asm__ volatile ( "csrw mtvec, %0" : : "r" ( freertos_risc_v_trap_handler ) );
 
-    riscv_set_csrs(mie, CSR_MIE_MTIE_BITS);
+    //riscv_set_csrs(mie, CSR_MIE_MTIE_BITS);
 }
 
 

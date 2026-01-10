@@ -99,14 +99,31 @@ static inline void __zero_bss()
 }
 
 
+
 /*************************** Exported functions *****************************/
 
-__attribute__((weak, naked))
+__attribute__((weak))
 void __default_trap_handler(void)
 {
-  while(1) {
-    __nop();
-  }
+    __asm__ __volatile__ ("csrr t0, mcause;\n"
+                          "csrr t1, mepc;\n"
+                          "csrr t2, mstatus;\n"
+    );
+
+    /* This handler is used during startup.
+     * It should weave any spurious trap
+     * and return.
+     * It should not hang, altough an
+     * exception is an abnormal situation and
+     * may hang for debugging.
+     */
+    if (! (read_csr_by_name(mcause) & CSR_MCAUSE_INTERRUPT) )
+    {
+        /* Trap is exception */
+        while(1) {
+            __nop();
+        }
+    }
 }
 
 /***********************************************

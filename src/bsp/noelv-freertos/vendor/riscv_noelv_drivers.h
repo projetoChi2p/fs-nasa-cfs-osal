@@ -35,36 +35,43 @@
 //   cpu0       Frontgrade Gaisler  NOEL-V RISC-V Processor    
 //              AHB Master 0
 //   ahbuart0   Frontgrade Gaisler  AHB Debug UART    
-//              AHB Master 4
+//              AHB Master 9
 //              APB: ff986000 - ff986100
 //              Baudrate 115200, AHB frequency 50.00 MHz
-//   dm0        Frontgrade Gaisler  RISC-V Debug Module    
-//              AHB Master 7
-//              AHB: fe000000 - ff000000
-//              hart0: ISA rv64imafdcb, Modes M S U, SV39
-//                     i, m, a, f, d, c, smepmp, sscofpmf, svinval, zaamo
-//                     zalrsc, zba, zbb, zbs, zca, zcd, zicbom, zicfilp, zicfiss
-//                     zicntr, zicond, zifencei, zihpm, zimop
-//                     Stack pointer 0x0007fff0
-//                     icache 4 * 4 kB, 32 B/line, dir,
-//                     dcache 4 * 4 kB, 32 B/line, dir
-//                     2 triggers,
-//                     itrace 64 lines
 //   apbmst0    Frontgrade Gaisler  AHB/APB Bridge    
 //              AHB: ff900000 - ffa00000
 //   ahbram0    Frontgrade Gaisler  Single-port AHB SRAM module    
 //              AHB: 00000000 - 10000000
-//              32-bit SRAM: 512 kB @ 0x00000000
+//              32-bit SRAM: 128 kB @ 0x00000000
 //   ahbrom0    Frontgrade Gaisler  Generic AHB ROM    
 //              AHB: c0000000 - e0000000
 //              32-bit ROM: 512 MB @ 0xc0000000
-//   adev6      Frontgrade Gaisler  AMBA AHB/AXI Bridge    
-//              AHB: 40000000 - 80000000
+//   apbmst1    Frontgrade Gaisler  AHB/APB Bridge    
+//              AHB: ff400000 - ff500000
+//   apbmst2    Frontgrade Gaisler  AHB/APB Bridge    
+//              AHB: ff500000 - ff600000
+//   adev7      Frontgrade Gaisler  AMBA AHB/AXI Bridge    
+//              AHB: 40000000 - 41000000
+//   spim0      Frontgrade Gaisler  SPI Memory Controller    
+//              AHB: fff42000 - fff43000
+//              AHB: 41000000 - 42000000
+//              IRQ: 10
+//              SPI memory device read command: 0x0b
 //   clint0     Frontgrade Gaisler  RISC-V ACLINT    
 //              AHB: e0000000 - e0100000
 //   plic0      Frontgrade Gaisler  RISC-V PLIC    
 //              AHB: f8000000 - fc000000
 //              4 contexts, 31 interrupt sources, 7 max priority
+//   dm0        Frontgrade Gaisler  RISC-V Debug Module    
+//              AHB: fe000000 - ff000000
+//              hart0: ISA rv64imac, Modes M U
+//                     i, m, a, c, zaamo, zalrsc, zca, zicntr, zifencei, zihpm
+//                     zimop
+//                     Stack pointer 0x0001fff0
+//                     icache 4 * 4 kB, 32 B/line, rnd,
+//                     dcache 4 * 4 kB, 32 B/line, rnd
+//                     2 triggers,
+//                     itrace 64 lines
 //   uart0      Frontgrade Gaisler  Generic UART    
 //              APB: ff900000 - ff900100
 //              IRQ: 1
@@ -75,12 +82,13 @@
 //              16-bit scaler, 2 * 32-bit timers, divisor 50
 //   version0   Frontgrade Gaisler  Version and Revision Register    
 //              APB: ff981000 - ff981100
-//              Version 896, Revision 140
+//              Version 643, Revision 140
 //   ahbstat0   Frontgrade Gaisler  AHB Status Register    
 //              APB: ff982000 - ff982100
 //              IRQ: 4
 //   gpio0      Frontgrade Gaisler  General Purpose I/O port    
 //              APB: ff983000 - ff983100
+
 
 
 // http://patorjk.com/software/taag/#p=display&f=Colossal&t=
@@ -92,9 +100,6 @@
 // "Y888888  88888P' 888  888  888 
 
 #define __nop() __asm__ __volatile__("nop")
-
-#define riscv_clear_csr(csrname, data) _riscv_clear_csr(csrname, data)
-
 
 
 #if __riscv_xlen == 64
@@ -202,8 +207,8 @@ do {                                           \
 
 #if __riscv_xlen == 64
 
-#define CSR_MCAUSE_CAUSE  0x7FFFFFFFFFFFFFFF
-#define CSR_MCAUSE_INT    0x8000000000000000
+#define CSR_MCAUSE_CAUSE      0x7FFFFFFFFFFFFFFF
+#define CSR_MCAUSE_INTERRUPT  0x8000000000000000
 
 
 
@@ -470,7 +475,12 @@ typedef struct
 
 
 /* Control register */
-#define APBUART_CTRL_FA                    (1 << 31)
+#define APBUART_CTRL_FA         (1u << 31)
+#define APBUART_CTRL_BRK_SZ     ((10u-1u)<<16)
+#define APBUART_CTRL_TE         (1u << 1)
+#define APBUART_CTRL_RE         (1u << 0)
+#define APBUART_CTRL_RESET      (APBUART_CTRL_FA|APBUART_CTRL_BRK_SZ|APBUART_CTRL_TE|APBUART_CTRL_RE)
+
 /* Status register */
 #define APBUART_STATUS_DR                  (1 << 0)
 #define APBUART_STATUS_TF                  (1 << 9)
@@ -488,14 +498,16 @@ static int fifoinfo = FIFO_UNKNOWN;
 
 /***************************************************************************
  */
-static inline void uart_set_scaler(UartDevice *UARTx, const uint32_t scaler)
+static inline void uart_init_and_set_scaler(UartDevice *UARTx, const uint32_t scaler)
 {
     UARTx->scaler = scaler;
+    UARTx->ctrl = APBUART_CTRL_RESET;
+    fifoinfo = FIFO_UNKNOWN;
 }
 
 /***************************************************************************
  */
-static inline uint32_t uart_get_scaled(UartDevice *UARTx)
+static inline uint32_t uart_get_scaler(UartDevice *UARTx)
 {
     return UARTx->scaler;
 }
