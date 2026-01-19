@@ -102,7 +102,7 @@ static inline void __zero_bss()
 
 /*************************** Exported functions *****************************/
 
-__attribute__((weak))
+__attribute__((weak, aligned(8), interrupt("machine")))
 void __default_trap_handler(void)
 {
     __asm__ __volatile__ ("csrr t0, mcause;\n"
@@ -125,6 +125,8 @@ void __default_trap_handler(void)
         }
     }
 }
+
+
 
 /***********************************************
  */

@@ -135,38 +135,33 @@
 #pragma GCC diagnostic pop
 
 
-#define riscv_set_csrs(csrname, val)           \
+#define riscv_set_csr(csrname, val)            \
 do {                                           \
     unsigned long __v = (unsigned long)(val);  \
     __asm__ __volatile__ (                     \
         "csrs " #csrname ", %0"                \
         :                                      \
-        : "r" (__v)                            \
+        : "rK" (__v)                           \
         : "memory"                             \
     );                                         \
 } while (0)
 
+#define riscv_clear_csr(csrname, data)         \
+do {                                           \
+    __asm__ __volatile__ (                     \
+        "csrc " #csrname ", %0"                \
+        :                                      \
+        : "rK" (data));                        \
+} while (0)
 
-#define riscv_set_csr(csrname, data) ({ \
-    if (__builtin_constant_p(data) && !((data) & -32u)) { \
-        asm volatile ("csrsi " #csrname ", %0" : : "i" (data)); \
-    } else { \
-        asm volatile ("csrs " #csrname ", %0" : : "r" (data)); \
-    } \
-})
+#define riscv_write_csr(csrname, data)         \
+do {                                           \
+    __asm__ __volatile__ (                     \
+        "csrw " #csrname ", %0"                \
+        :                                      \
+        : "rK" (data));                        \
+} while (0)
 
-#define riscv_clear_csr(csrname, data) ({ \
-    if (__builtin_constant_p(data) && !((data) & -32u)) { \
-        asm volatile ("csrci " #csrname ", %0" : : "i" (data)); \
-    } else { \
-        asm volatile ("csrc " #csrname ", %0" : : "r" (data)); \
-    } \
-})
-
-
-#define set_csr_by_name(reg, bit) __extension__({ unsigned long __tmp; \
-  asm volatile ("csrrs %0, " #reg ", %1" : "=r"(__tmp) : "rK"(bit)); \
-  __tmp; })
 
 
 #endif /* __riscv_xlen == 64 */
@@ -203,12 +198,13 @@ do {                                           \
 #define NOELV_CCTRL_DCS (0x3 <<  2) // data cache state, bit 0: active
 #define NOELV_CCTRL_ICS (0x3 <<  0) // intruction cache state, bit 0: active
 
-#define MSTATUS_MIE     0x8
+#define CSR_MSTATUS_MIE 0x8 /* M-mode interrupt enable */
+
 
 #if __riscv_xlen == 64
 
-#define CSR_MCAUSE_CAUSE      0x7FFFFFFFFFFFFFFF
-#define CSR_MCAUSE_INTERRUPT  0x8000000000000000
+#define CSR_MCAUSE_CAUSE      0x7FFFFFFFFFFFFFFFULL
+#define CSR_MCAUSE_INTERRUPT  0x8000000000000000ULL
 
 
 
@@ -224,20 +220,26 @@ do {                                           \
  * Common to both mip and mie registers
  */
 
- /* Timer interrupt enable.
- * Timer interrupts when mie.mtie, mip.mtip and mstatus.mie
- * are all 1, unless a software or an external interrupt request
- * is also pending and enabled.
- */
-#define CSR_MIE_MTIE_BITS   0x80U
-
-/* Software interrupt enable.
+ /* Software interrupt enable.
  * Software interrupts when mie.msie, mip.msip and mstatus.mie
  * are all 1, unless an external interrupt request is also 
  * pending and enabled.
  */
-#define CSR_MIE_MSIE_BITS   0x8U
+#define CSR_MIE_MSIE_BITS   (1U << IRQ_M_SOFT)
 #define CSR_MIP_MSIP_BITS   (1U << IRQ_M_SOFT)
+
+/* Timer interrupt enable.
+* Timer interrupts when mie.mtie, mip.mtip and mstatus.mie
+* are all 1, unless a software or an external interrupt request
+* is also pending and enabled.
+*/
+#define CSR_MIE_MTIE_BITS   (1U << IRQ_M_TIMER)
+
+/* External interrupt enable.
+ * Interrupts via PLIC.
+ */
+#define CSR_MIE_MEIE_BITS   (1U << IRQ_M_EXT)
+
 
 
 #endif /* __riscv_xlen == 64 */

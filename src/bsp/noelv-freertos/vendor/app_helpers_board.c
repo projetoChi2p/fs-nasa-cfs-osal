@@ -57,6 +57,14 @@ uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 //                                               Y8b d88P 
 //                                                "Y88P"  
 
+__attribute__ ((section(".noinit.boot_debug"),used))
+volatile uintptr_t g_boot_misa = 0;
+__attribute__ ((section(".noinit.boot_debug"),used))
+volatile uintptr_t g_boot_mstatus = 0;
+__attribute__ ((section(".noinit.boot_debug"),used))
+volatile uintptr_t g_boot_mie = 0;
+__attribute__ ((section(".noinit.boot_debug"),used))
+volatile uintptr_t g_boot_mip = 0;
 
 #define BOOT_INFO_MAGIC     0x0123B001U
 #define BOOT_INFO_WARM_BOOT 0xD000B001U
@@ -465,6 +473,8 @@ extern void freertos_vector_table( void );
  */
 void HLP_vSystemConfig(void)
 {
+    uint8_t debug_buffer[32];
+
     // Initialize persistent data
     if (boot_info.magic != BOOT_INFO_MAGIC)
     {
@@ -476,8 +486,6 @@ void HLP_vSystemConfig(void)
 
     clear_watchdog_all();
     clear_clint_software_interrupts_enable();
-    set_csr_by_name(mie, CSR_MIP_MSIP_BITS);
-    uint64_t hartid = read_csr_by_name(mhartid);
 
     gpio_enable_output(GPIO0, GPIO_PIN16_MASK);
 
@@ -486,11 +494,6 @@ void HLP_vSystemConfig(void)
     //                For now we are only using polled I/O and
     //                CLINT timer IRQ, so we are negrecting PLIC
     //                setup.
-
-    /*
-     * Enable interrupts.
-     */
-    set_csr_by_name(mstatus, MSTATUS_MIE);
 
     // Just some blinking for visually observing a reboot
     for (int i = 0; i < 3; i++)
@@ -518,8 +521,19 @@ void HLP_vSystemConfig(void)
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintStringBaremetal("*************************************\n");
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: RISC-V NOEL-V FreeRTOS\n", __func__, __LINE__);
-    HLP_vConsolePrintFormattedBaremetal("%s [%d]: FreeRTOS Kernel is %s \n", __func__, __LINE__, tskKERNEL_VERSION_NUMBER);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: FreeRTOS Kernel %s \n", __func__, __LINE__, tskKERNEL_VERSION_NUMBER);
+    #ifdef __GNUC__
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Compiler GCC %s\n", __func__, __LINE__, __VERSION__);
+    #endif /* __GNUC__ */
+
+    HLP_vPrintHexU64(debug_buffer, g_boot_misa);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: misa at boot    = 0x%s\n", __func__, __LINE__, debug_buffer);
+    HLP_vPrintHexU64(debug_buffer, g_boot_mstatus);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: mstatus at boot = 0x%s\n", __func__, __LINE__, debug_buffer);
+    HLP_vPrintHexU64(debug_buffer, g_boot_mie);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: mie at boot     = 0x%s\n", __func__, __LINE__, debug_buffer);
+    HLP_vPrintHexU64(debug_buffer, g_boot_mip);
+    HLP_vConsolePrintFormattedBaremetal("%s [%d]: mip at boot     = 0x%s\n", __func__, __LINE__, debug_buffer);
 
     switch( HLP_uGetResetType() )
     {
@@ -537,6 +551,7 @@ void HLP_vSystemConfig(void)
             break;
     }
 
+    uint64_t hartid = read_csr_by_name(mhartid);
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Executing at hart (ID): %d\r\n", __func__, __LINE__, (int)hartid);
 
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: Size of char:%d short:%d int:%d long:%d long long:%d float:%d double:%d char*:%d void*:%d\r\n",
@@ -566,7 +581,7 @@ void HLP_vSystemConfig(void)
         WATCHDOG_MAX_MILLISECONDS );
     
     #if __riscv_flen == 0
-        HLP_vConsolePrintFormattedBaremetal("%s [%d]: No FPU\n", __func__, __LINE__);
+        HLP_vConsolePrintFormattedBaremetal("%s [%d]: Not using FPU\n", __func__, __LINE__);
     #elif __riscv_flen == 32
         HLP_vConsolePrintFormattedBaremetal("%s [%d]: FPU is 32-bits\n", __func__, __LINE__);
     #elif __riscv_flen == 64
@@ -575,7 +590,6 @@ void HLP_vSystemConfig(void)
         #error Undefined FPU.
     #endif
 
-    uint8_t debug_buffer[32];
     uint64_t mstatus;
     uint64_t misa;
     // Fetch the cause value for the interrupt
@@ -588,9 +602,18 @@ void HLP_vSystemConfig(void)
     HLP_vConsolePrintFormattedBaremetal("%s [%d]: mstatus %s.\r\n", __func__, __LINE__, debug_buffer);
  
     HLP_vRtosBringUp();
-    __asm__ volatile ( "csrw mtvec, %0" : : "r" ( freertos_risc_v_trap_handler ) );
 
-    //riscv_set_csrs(mie, CSR_MIE_MTIE_BITS);
+    riscv_write_csr(mie, 0);
+    riscv_write_csr(mip, 0);
+    riscv_clear_csr(mstatus, CSR_MSTATUS_MIE);
+    riscv_write_csr(mtvec, (uintptr_t)freertos_risc_v_trap_handler);
+
+    // FreeRTOS will enable interrupts on mie     in xPortStartScheduler()
+    //                                               __asm volatile( "csrs mie, %0" :: "r"(0x880) );
+    // FreeRTOS will enable interrupts on mstatus in xPortStartFirstTask()
+    //                                               addi    x5, x5, 0x08
+    //                                               csrrw   x0, mstatus, x5
+    //
 }
 
 

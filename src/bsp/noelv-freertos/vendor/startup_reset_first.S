@@ -26,17 +26,22 @@
  */
 
 
+#define MSTATUS_SIE    0x00000002U           /* S-mode interrupt enable */
+#define MSTATUS_MIE    0x00000008U           /* M-mode interrupt enable */
+#define MSTATUS_SPIE   0x00000020U           /* Previous-state S-mode interrupt enable */
+#define MSTATUS_MPIE   0x00000080U           /* Previous-state M-mode interrupt enable */
+#define MSTATUS_MPP    0x00001800U           /* Machine Previous Priviledge mode. */
+#define MSTATUS_FS     0x00006000U           /* Floating-point status, enabled */
+#define MSTATUS_MDT    0x0000040000000000ULL /* Machine double trap event */
 
-#define MSTATUS_SIE    0x00000002 /* S-mode interrupt enable */
-#define MSTATUS_MIE    0x00000008 /* M-mode interrupt enable */
-#define MSTATUS_SPIE   0x00000020 /* Previous-state S-mode interrupt enable */
-#define MSTATUS_MPIE   0x00000080 /* Previous-state M-mode interrupt enable */
-#define MSTATUS_MPP    0x00001800 /* Machine Previous Priviledge mode. */
-#define MSTATUS_FS     0x00006000 /* Floating-point status, enabled */
+#define MNSTATUS_NMIE  0x00000008U /* Non-maskable interrupt interrupt enable */
 
-#define MISA_S_MODE    0x00040000 /* Supervisor mode implemented */
+#define MISA_S_MODE    0x00040000U /* Supervisor mode implemented */
 
 .equ CCTRL,       0x7c1
+.equ MNSCRATCH,   0x740
+.equ MNSTATUS,    0x744
+
 
 .section ".text.first"
 
@@ -44,18 +49,32 @@
 .option norvc;
 _start:
 
+  ##################################################
+  # Install non-blocking handler for spurious interrupts
   la t0, __default_trap_handler
   csrw mtvec, t0
 
-  # Is new mtvec effective?
-  1:
+  # Check new mtvec effective
+1:
   csrr    t1, mtvec
   bne t0, t1, 1b
 
-  # flush and enable L1-I/D cache
-  li t0, 0x1cf
-  csrw CCTRL, t0
+  ##################################################
+  # Read and save CSRs for debugging
+  csrr t0, misa
+  csrr t1, mstatus
+  csrr t2, mie
+  csrr t3, mip
+  la   t4, g_boot_misa
+  sd   t0, 0(t4)
+  la   t4, g_boot_mstatus
+  sd   t1, 0(t4)
+  la   t4, g_boot_mie
+  sd   t2, 0(t4)
+  la   t4, g_boot_mip
+  sd   t3, 0(t4)
 
+  ##################################################
   # Disable all interrupts globally
   li   t0, (MSTATUS_MIE|MSTATUS_MPIE|MSTATUS_SIE|MSTATUS_SPIE)
   csrc mstatus, t0 # Clear
@@ -65,30 +84,52 @@ _start:
   # Clear pending interrupt bits
   csrw   mip, zero
 
-  # Note: NOEL-V HP and GP have a Return Address Stack (RAS)
-  #       with depth 8, which is cleared on cold-reset (rstn pin)
-  #       At this moment we are using cold-reset.
-  #       We should investigate if clearing RAS is required in
-  #       a soft-reset.
+  ##################################################
+  # flush and enable L1-I/D cache
+  li t0, 0x1cf
+  csrw CCTRL, t0
 
-  # Clear delegation registers
-  # On warm-reset, may delegation be dirty?
-  csrr   t0, misa
-  li     t1, MISA_S_MODE
-  and    t0, t0, t1
-  beqz   t0, no_s_mode
-
-  csrw   medeleg, zero
-  csrw   mideleg, zero
-
-no_s_mode:
-
-  # Clear machine scratch
-  csrw    mscratch, zero
-
+  ##################################################
   # Force known privilege return mode
-  li      t0, MSTATUS_MPP
-  csrs    mstatus, t0 # Set
+  li   t0, MSTATUS_MPP
+  csrs mstatus, t0 # Set
+
+#ifdef CONFIG_NOELV_GP
+  # It may be incorrect to manipulate SmDBLTRP SmRNMI here.
+  #
+  # This is just a workaround to avoid software hang
+  # until we have full knowledge of how to configure
+  # the machine properly.
+  #
+  # If NMIE is is not set, interrupts are not taken.
+  # If MDT is set, timer IRQ is taken, and ISR calls
+  # ecall (yield), then SmDBLTRP activates, exposed
+  # at SmRNMI.
+  #
+  li   t0, MNSTATUS_NMIE
+  csrs mnstatus, t0
+  li   t0, MSTATUS_MDT
+  csrc mstatus, t0
+#endif /* CONFIG_NOELV_GP */
+
+#ifdef __riscv_flen
+  # Try set FPU state
+  la   t0, 3f
+  csrw mtvec, t0
+  # Is new mtvec effective?
+2:
+  csrr    t1, mtvec
+  bne t0, t1, 2b
+
+
+  li   t0, MSTATUS_FS
+  csrs  mstatus, t0 # Set
+  csrr  t0, fcsr
+  csrw  fcsr, zero
+  csrc  mstatus, t0 # Clear
+3:
+#endif
+
 
   # Disable FPU state
   li    t0, MSTATUS_FS
@@ -97,29 +138,19 @@ no_s_mode:
   csrw   fcsr, zero
 #endif
 
-  # Clean-up performance counters
-  csrw   mcycle,   zero
-  csrw   minstret, zero
-
-  # Clean-up PMP
-  # mtvec is being set here to jump back to this
-  # boot-up sequence (goto label 2 forward) in 
-  # case any trap is raised
-  la t0, 2f
-  csrw mtvec, t0
-
-  csrw   pmpcfg0, zero
-  csrw   pmpaddr0, zero
-2:
 
 #ifdef __riscv_flen
   # initialize FPU if we have one
 
   # mtvec is being set here to jump back to this
-  # boot-up sequence (goto label 3 forward) in 
+  # boot-up sequence (goto label forward) in 
   # case any trap is raised
-  la t0, 3f
+  la t0, 5f
   csrw mtvec, t0
+  # Is new mtvec effective?
+4:
+  csrr    t1, mtvec
+  bne t0, t1, 4b
 
   # Clear float register file
   fssr    x0
@@ -155,12 +186,19 @@ no_s_mode:
   fmv.s.x f29,x0
   fmv.s.x f30,x0
   fmv.s.x f31,x0
-3:
+5:
 #endif
 
+#ifdef __riscv_flen
   # Restore trap handler, direct mode
   la t0, __default_trap_handler
   csrw mtvec, t0
+
+  # Is new mtvec effective?
+6:
+  csrr    t1, mtvec
+  bne t0, t1, 6b
+#endif
 
 #ifdef __riscv_flen
   # Enable FPU
@@ -168,6 +206,13 @@ no_s_mode:
   csrs    mstatus, t0 # Set
   csrw    fcsr, zero
 #endif
+
+  # Clear machine scratch
+  csrw    mscratch, zero
+
+  # Clean-up performance counters
+  csrw   mcycle,   zero
+  csrw   minstret, zero
 
   # Clear register file
   li  x1, 0
@@ -210,7 +255,5 @@ no_s_mode:
   la sp, __stack_top
 
   j startup_init
-
-  ecall
 
   j .

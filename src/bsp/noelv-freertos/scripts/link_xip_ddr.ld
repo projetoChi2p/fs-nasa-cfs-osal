@@ -38,7 +38,7 @@ OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 /* Required amount of stack */
-__STACK_SIZE = 2k;
+__STACK_SIZE = 4k;
 
 /* Needs to be checked for each application
  * libc uses malloc()
@@ -55,14 +55,25 @@ MEMORY
   RAM  (!rwx) : ORIGIN = 0x00000000, LENGTH = 128K
   PROM (rx)   : ORIGIN = 0xC0000000, LENGTH = 512K
   DDR  (rw)   : ORIGIN = 0x40000000, LENGTH = 640K
+  CDS  (rw)   : ORIGIN = 0x400A0000, LENGTH = 384K
   ROM  (rx)   : ORIGIN = 0x41400000, LENGTH = 320K
 }
+
+/* We want NASA cFS/cFE/PSP CDS, as well as other
+ * control data, to be placed in the same address
+ * so that booting with different software
+ * versions will find the data preserved between
+ * boots. Data elements sizing and structure 
+ * alignment/packing must also be canonicalized
+ * at the software.
+ */
 
 REGION_ALIAS("REGION_TEXT",        ROM);
 REGION_ALIAS("REGION_RODATA",      ROM);
 REGION_ALIAS("REGION_DATA_VMA",    DDR);
 REGION_ALIAS("REGION_DATA_LMA",    ROM);
 REGION_ALIAS("REGION_BSS",         DDR);
+REGION_ALIAS("REGION_CDS",         CDS);
 /* 
 REGION_ALIAS("REGION_EXTDATA_VMA", DDR);
 REGION_ALIAS("REGION_EXTDATA_LMA", ROM);
@@ -86,6 +97,7 @@ SECTIONS {
     *(.text*)
 
   } > REGION_TEXT
+
 
 /*
 	.rodata : {
@@ -132,6 +144,18 @@ SECTIONS {
   
   . = ALIGN(16);
   __bss_end = .;
+
+
+  /* bss-like section, but non initialized on boot and placed in a fixed address */
+  .cds (NOLOAD) : ALIGN(16)
+  {
+      __noinit_cds_start = .; 
+      *(.noinit.boot_info)
+      *(.noinit.psp_reserved)
+      . = ALIGN(16);
+      __noinit_cds_end = .;
+  } > REGION_CDS
+
 
   /* bss-like section, but non initialized on boot */
   .noinit (NOLOAD) : ALIGN(16)
