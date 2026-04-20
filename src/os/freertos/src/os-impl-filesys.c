@@ -242,6 +242,7 @@ int32 OS_FileSysStartVolume_Impl(const OS_object_token_t *token)
                     return_code = OS_INVALID_POINTER;
                     break;
                 }
+
                 impl->fs_alloc_type  = OS_FILESYS_ALLOCATION_TYPE_DYNAMIC;
             }
 

@@ -103,14 +103,29 @@ static inline void minidelay(uint32_t n)
 */
 void freertos_risc_v_application_interrupt_handler(void) {
     volatile uintptr_t mcause = read_csr(mcause);
-    if (((mcause & MCAUSE_INT) == MCAUSE_INT) && ((mcause & MCAUSE_CAUSE) == IRQ_M_EXT)) {
+
+    if (((mcause & MCAUSE_INT) == MCAUSE_INT) && ((mcause & MCAUSE_CAUSE) >=\
+            IRQ_M_LOCAL_MIN)&& ((mcause & MCAUSE_CAUSE)  <= IRQ_M_LOCAL_MAX))
+    {
+        handle_local_interrupt((uint8_t)(mcause & MCAUSE_CAUSE));
+    }
+    else if (((mcause & MCAUSE_INT) == MCAUSE_INT) && ((mcause & MCAUSE_CAUSE)\
+    == IRQ_M_EXT))
+    {
         handle_m_ext_interrupt();
     }
     else {
         __asm volatile("csrr t0, mcause");  /* For viewing in the debugger only */
         __asm volatile("csrr t1, mepc");    /* For viewing in the debugger only */
         __asm volatile("csrr t2, mstatus"); /* For viewing in the debugger only */
-        __asm volatile("j .");
+
+        set_csr(mstatus, MSTATUS_MIE);
+
+        MSS_UART_polled_tx_string(&g_mss_uart4_lo, "\nSYSTEM TRAP: Waiting for Watchdog Reset...\n");
+
+        while(1) {
+            __asm volatile("nop");
+        }
     }
 }
 
@@ -119,9 +134,9 @@ void freertos_risc_v_application_interrupt_handler(void) {
     * The Interruption Sub-Routine that performs the Fault Injection.
 */
 void FI_ISR(mss_uart_instance_t *this_uart)  {
-    uint8_t     rx_buff [14];
-    uint64_t    FI_addr;
-    uint8_t     FI_btf;
+    uint8_t  rx_buff [14];
+    uint64_t addr;
+    uint8_t  btf;
 
     /*
     [0 .. 7] = Memory Address (ADDR)
@@ -129,18 +144,14 @@ void FI_ISR(mss_uart_instance_t *this_uart)  {
     [9]      = \0
     [10 .. 13] = Not Used
     */
+    MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
 
-    // MSS_UART_get_rx(&g_mss_uart1_lo, rx_buff, sizeof(rx_buff));
+    memcpy(&addr, rx_buff, sizeof(addr));
+    btf = rx_buff[8];
 
-    // memcpy(&FI_addr, rx_buff, sizeof(FI_addr));
-    // memcpy(&FI_btf, &rx_buff[8], sizeof(FI_btf));
-
-    // Cast fi_addr to a pointer and flip the specified bit
-    // uint32_t *injection_address = (uint32_t *)FI_addr;
-    // *injection_address ^= (1U << FI_btf);
-
-    HLP_vConsolePrintFormattedBaremetal("Reseting\r\n");
-    HLP_vSystemRestart();
+    // Cast the address to a pointer and flip the specified bit
+    uint32_t *fi_addr = (uint32_t *)addr;
+    *fi_addr ^= (1U << btf);
 }
 
 
@@ -178,7 +189,7 @@ void HLP_vPrintChar(char c, int8_t out) {
     trace_task_tag[0] = '~';
     trace_task_tag[1] = c + out;
     trace_task_tag[2] = '\n';
-    MSS_UART_polled_tx(&g_mss_uart4_lo, (uint8_t*)trace_task_tag, 3);
+    MSS_UART_polled_tx(&g_mss_uart0_lo, (uint8_t*)trace_task_tag, 3);
 }
 
 void HLP_vSystemConfig(void)
@@ -202,9 +213,23 @@ void HLP_vSystemConfig(void)
     (void)mss_config_clk_rst(MSS_PERIPH_CFM,     (uint8_t) MPFS_HAL_FIRST_HART, PERIPHERAL_ON);
     (void)mss_config_clk_rst(MSS_PERIPH_EMMC,    (uint8_t) MPFS_HAL_FIRST_HART,  PERIPHERAL_ON);
 
+    /*
+    * Serial used to transmit task in's and out's ID's.
+    */
+#ifdef FREERTOS_TRACE_ENABLED
+    (void)mss_config_clk_rst(MSS_PERIPH_MMUART0, (uint8_t) MPFS_HAL_LAST_HART,  PERIPHERAL_ON);
+#endif
+
     MSS_UART_init( &( g_mss_uart4_lo ),
                    MSS_UART_115200_BAUD /* MSS_UART_921600_BAUD MSS_UART_115200_BAUD */,
                    MSS_UART_DATA_8_BITS | MSS_UART_NO_PARITY | MSS_UART_ONE_STOP_BIT );
+
+
+#ifdef FREERTOS_TRACE_ENABLED
+    MSS_UART_init( &( g_mss_uart0_lo ),
+                   MSS_UART_921600_BAUD,
+                   MSS_UART_DATA_8_BITS | MSS_UART_NO_PARITY | MSS_UART_ONE_STOP_BIT );
+#endif
 
     MSS_GPIO_init(GPIO1_LO);
     MSS_GPIO_config(GPIO1_LO, MSS_GPIO_9, MSS_GPIO_OUTPUT_MODE);
@@ -229,7 +254,7 @@ void HLP_vSystemConfig(void)
     }
 
     #ifdef ENABLE_FI
-        setup_FI_ISR();
+    setup_FI_ISR();
     #endif
 
 
@@ -325,7 +350,7 @@ void HLP_vSystemConfig(void)
 
 }
 
-void HLP_vSystemRestart(void) {
+void HLP_vSystemRestart(uint32_t reset_type) {
     SYSREG->MSS_RESET_CR = 0xDEAD;
 }
 
@@ -337,7 +362,7 @@ uint32_t HLP_uGetResetType(void) {
     reset_register = SYSREG->RESET_SR;
     SYSREG->RESET_SR = 0;
 
-    if (reset_register & RESET_SR_SCB_PERIPH_RESET_MASK)
+    if (reset_register & 0x1ff)
     {
         reset_type = HLP_RESET_TYPE_POWERON;
     }
@@ -357,7 +382,7 @@ uint32_t HLP_uGetResetType(void) {
     {
         reset_type = HLP_RESET_TYPE_POWERON;
     }
-    
+
     return reset_type;
 }
 
