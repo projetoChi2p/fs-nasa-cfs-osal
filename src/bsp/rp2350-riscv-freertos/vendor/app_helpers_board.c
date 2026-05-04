@@ -361,51 +361,6 @@ void freertos_risc_v_application_exception_handler(void )
     uart_puts((char*)debug_buffer);
     uart_puts("\n");
 
-
-    uint32_t sp_val;
-    // Grab the current Stack Pointer
-    __asm volatile("mv %0, sp" : "=r"(sp_val));
-
-    uart_puts("\n=== BACKTRACE (STACK DUMP) ===\n");
-    uint32_t *stack = (uint32_t *)sp_val;
-
-    // Scan the next 64 words (256 bytes) of the stack
-    for(int i = 0; i < 64; i++)
-    {
-        uint32_t val = stack[i];
-
-        // Filter: Only print if the value is in the Flash memory range (0x10000000 - 0x10FFFFFF)
-        // AND it is an even number (RISC-V instructions are 16-bit or 32-bit aligned)
-        if(((val & 0xFF000000) == 0x10000000) && ((val & 0x1) == 0))
-        {
-            uart_puts("Found at SP+"); uart_print8hex(i * 4); uart_puts(": ");
-            uart_print8hex(val);
-            uart_printnl();
-        }
-    }
-    uart_puts("==============================\n");
-
-
-    // Tell the compiler about the FreeRTOS global task pointer
-    extern uint32_t * volatile pxCurrentTCB;
-
-    uart_puts("\n=== THE SNIPER TRICK ===\n");
-
-    if (pxCurrentTCB != 0) {
-        // The first element of the TCB is ALWAYS the task's stack pointer!
-        uint32_t *task_sp = (uint32_t *)(*pxCurrentTCB);
-
-        // FreeRTOS RISC-V saves the 'ra' register exactly at index 1 (Offset 4)
-        uint32_t true_ra = task_sp[1];
-
-        uart_puts("True Caller (Return Address): ");
-        uart_print8hex(true_ra);
-        uart_printnl();
-    } else {
-        uart_puts("pxCurrentTCB is NULL!\n");
-    }
-    uart_puts("========================\n");
-
     while (1)
     {
         __asm volatile("nop");
