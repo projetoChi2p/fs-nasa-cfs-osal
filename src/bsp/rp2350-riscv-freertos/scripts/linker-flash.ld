@@ -7,8 +7,8 @@ __HEAP_SIZE = 8K;
 
 MEMORY {
     FLASH (rx)  : ORIGIN = 0x10000000, LENGTH = 4M
-    RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 512K
-    RAM2  (rwx) : ORIGIN = 0x20080000, LENGTH = 8K
+    RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 520K
+    /* RAM2  (rwx) : ORIGIN = 0x20080000, LENGTH = 8K */
 }
 
 SECTIONS {
