@@ -59,11 +59,11 @@ void OS_BSP_Main_Task(void *pvParameters)
 
 /* This OS_FreeRTOS_MapOsalPriority() function would fit better
  * inside os-impl-task.c, but that file/module is not compiled
- * in the case of OSAL's coverage tests, failing to satisfy 
+ * in the case of OSAL's coverage tests, failing to satisfy
  * linkage for main() below. Consequently, OS_FreeRTOS_MapOsalPriority()
  * is here in BSP, instead of in OS.
  */
-UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority) 
+UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
 {
     UBaseType_t uxPriority;
 
@@ -90,7 +90,7 @@ UBaseType_t OS_FreeRTOS_MapOsalPriority(osal_priority_t priority)
         uxPriority = configMAX_PRIORITIES;
     }
 
-    /* Reverse order 
+    /* Reverse order
      * OSAL highest numeric value is lowest priority
      * FreeRTOS highest numeric value is highest priority
      */
@@ -127,12 +127,12 @@ int main(int argc, char *argv[])
         return OS_SEM_FAILURE;
     }
 
-    /* OSAL is not brought-up at this point, hence we cannot 
+    /* OSAL is not brought-up at this point, hence we cannot
      * rely on pure OSAL tasks and semaphores.
      * Still, while initializing OSAL, we may rely on FreeRTOS
-     * features, like critical sections, for instance in 
+     * features, like critical sections, for instance in
      * filesystems initialization.
-     * Hence, it is safer to bring-up OSAL from within FreeRTOS 
+     * Hence, it is safer to bring-up OSAL from within FreeRTOS
      * task.
      */
     xReturnCode = xTaskCreate(
