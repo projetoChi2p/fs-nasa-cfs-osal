@@ -26,7 +26,7 @@ image_def: # the memory image to be recognised as a valid RISC-V binary.
 _start:
 .option push
 .option norelax
-	la gp, __global_pointer$    # <--- Put the real RAM pointer here!
+	la gp, __global_pointer$
 .option pop
     la sp, STACK_TOP
     la a0, __vectors + 1
